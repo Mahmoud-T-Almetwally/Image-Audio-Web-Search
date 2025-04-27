@@ -1,11 +1,8 @@
 import logging
 import numpy as np
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
-
-from generated import feature_pb2
-from generated import feature_pb2_grpc
-
+from generated import feature_pb2, feature_pb2_grpc
 
 from extraction.extractor import (
     Extractor,
@@ -19,19 +16,13 @@ from extraction.extractor import (
 from utils.network import filter_urls_by_headers
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - [%(name)s] - %(message)s"
-)
 
 
 TYPE_MAP_TO_PROTO = {
     MEDIA_TYPE_IMAGE: feature_pb2.MediaType.IMAGE,
     MEDIA_TYPE_AUDIO: feature_pb2.MediaType.AUDIO,
 }
-
 TYPE_MAP_FROM_PROTO = {v: k for k, v in TYPE_MAP_TO_PROTO.items()}
-
-
 STATUS_MAP_TO_PROTO = {
     STATUS_SUCCESS: feature_pb2.Status.SUCCESS,
     STATUS_FAILED_DOWNLOAD: feature_pb2.Status.FAILED_DOWNLOAD,
@@ -41,10 +32,6 @@ STATUS_MAP_TO_PROTO = {
 
 
 class FeatureExtractionService(feature_pb2_grpc.FeatureServiceServicer):
-    """
-    Implementation of the FeatureService gRPC service.
-    Uses an Extractor instance to handle feature extraction logic.
-    """
 
     def __init__(
         self,
@@ -54,16 +41,6 @@ class FeatureExtractionService(feature_pb2_grpc.FeatureServiceServicer):
         filter_audio: bool = True,
         max_audio_size_mb: int = 100,
     ):
-        """
-        Initializes the service.
-
-        Args:
-            extractor: An initialized instance of the Extractor class.
-            filter_images: Whether to pre-filter image URLs using HEAD requests.
-            max_image_size_mb: Max image size in MB for filtering.
-            filter_audio: Whether to pre-filter audio URLs using HEAD requests.
-            max_audio_size_mb: Max audio size in MB for filtering.
-        """
         if extractor is None:
             raise ValueError("Extractor instance cannot be None")
         self.extractor = extractor
@@ -82,100 +59,145 @@ class FeatureExtractionService(feature_pb2_grpc.FeatureServiceServicer):
     def ProcessUrls(
         self, request: feature_pb2.ProcessUrlsRequest, context
     ) -> feature_pb2.ProcessUrlsResponse:
-        """
-        Handles the gRPC request to process a batch of URLs.
-        """
         logger.info(
             f"Received ProcessUrls request with {len(request.items)} items. Denoising: {request.apply_denoising}"
         )
 
         response = feature_pb2.ProcessUrlsResponse()
-        items_to_process: List[Dict[str, Any]] = []
-        urls_failed_filtering: Dict[str, str] = {}
 
-        image_urls_from_request: List[str] = []
-        audio_urls_from_request: List[str] = []
-        unknown_type_items: List[feature_pb2.UrlItem] = []
-        original_items_map: Dict[str, feature_pb2.UrlItem] = {}
+        items_for_filtering: Dict[str, Dict[str, Any]] = {}
+
+        original_items_map_by_page: Dict[str, feature_pb2.UrlItem] = {}
+
+        early_failures_by_page: Dict[str, Tuple[feature_pb2.Status, str]] = {}
 
         for item in request.items:
-            original_items_map[item.url] = item
-            item_type_internal = TYPE_MAP_FROM_PROTO.get(item.type)
-            if item_type_internal == MEDIA_TYPE_IMAGE:
-                image_urls_from_request.append(item.url)
-            elif item_type_internal == MEDIA_TYPE_AUDIO:
-                audio_urls_from_request.append(item.url)
-            else:
-                unknown_type_items.append(item)
+            page_url = item.page_url
+            media_url = item.media_url
+
+            if not page_url or not media_url:
                 logger.warning(
-                    f"Received item with unknown/unsupported type ({item.type}) for URL: {item.url}"
+                    f"Received item with missing page_url ('{page_url}') or media_url ('{media_url}')."
                 )
-                urls_failed_filtering[item.url] = f"Unsupported media type: {item.type}"
 
-        valid_image_urls = image_urls_from_request
-        if self.filter_images and image_urls_from_request:
-            logger.info(f"Filtering {len(image_urls_from_request)} image URLs...")
-            valid_image_urls = filter_urls_by_headers(
-                image_urls_from_request,
-                "image",
-                max_size_bytes=self.max_image_size_bytes,
+                continue
+
+            original_items_map_by_page[page_url] = item
+
+            item_type_internal = TYPE_MAP_FROM_PROTO.get(item.type)
+
+            if (
+                item_type_internal == MEDIA_TYPE_IMAGE
+                or item_type_internal == MEDIA_TYPE_AUDIO
+            ):
+                items_for_filtering[media_url] = {
+                    "page_url": page_url,
+                    "type": item_type_internal,
+                }
+            else:
+                logger.warning(
+                    f"Received item with unknown/unsupported type ({item.type}) for page: {page_url}, media: {media_url}"
+                )
+                early_failures_by_page[page_url] = (
+                    feature_pb2.Status.FAILED_UNSUPPORTED_TYPE,
+                    f"Unsupported media type: {item.type}",
+                )
+
+        image_media_urls = [
+            m_url
+            for m_url, data in items_for_filtering.items()
+            if data["type"] == MEDIA_TYPE_IMAGE
+        ]
+        audio_media_urls = [
+            m_url
+            for m_url, data in items_for_filtering.items()
+            if data["type"] == MEDIA_TYPE_AUDIO
+        ]
+
+        valid_image_media_urls = image_media_urls
+        if self.filter_images and image_media_urls:
+            logger.info(f"Filtering {len(image_media_urls)} image media URLs...")
+            valid_image_media_urls = filter_urls_by_headers(
+                image_media_urls, "image", max_size_bytes=self.max_image_size_bytes
             )
-            for url in image_urls_from_request:
-                if url not in valid_image_urls:
-                    urls_failed_filtering[url] = (
-                        "Failed image pre-filtering (HEAD check)"
+            for media_url in image_media_urls:
+                if media_url not in valid_image_media_urls:
+                    page_url = items_for_filtering[media_url]["page_url"]
+                    early_failures_by_page[page_url] = (
+                        feature_pb2.Status.FAILED_DOWNLOAD,
+                        "Failed image pre-filtering (HEAD check on media_url)",
                     )
 
-        valid_audio_urls = audio_urls_from_request
-        if self.filter_audio and audio_urls_from_request:
-            logger.info(f"Filtering {len(audio_urls_from_request)} audio URLs...")
-            valid_audio_urls = filter_urls_by_headers(
-                audio_urls_from_request,
-                "audio",
-                max_size_bytes=self.max_audio_size_bytes,
+        valid_audio_media_urls = audio_media_urls
+        if self.filter_audio and audio_media_urls:
+            logger.info(f"Filtering {len(audio_media_urls)} audio media URLs...")
+            valid_audio_media_urls = filter_urls_by_headers(
+                audio_media_urls, "audio", max_size_bytes=self.max_audio_size_bytes
             )
-            for url in audio_urls_from_request:
-                if url not in valid_audio_urls:
-                    urls_failed_filtering[url] = (
-                        "Failed audio pre-filtering (HEAD check)"
+            for media_url in audio_media_urls:
+                if media_url not in valid_audio_media_urls:
+                    page_url = items_for_filtering[media_url]["page_url"]
+                    early_failures_by_page[page_url] = (
+                        feature_pb2.Status.FAILED_DOWNLOAD,
+                        "Failed audio pre-filtering (HEAD check on media_url)",
                     )
 
-        for url in valid_image_urls:
-            items_to_process.append({"url": url, "type": MEDIA_TYPE_IMAGE})
-        for url in valid_audio_urls:
-            items_to_process.append({"url": url, "type": MEDIA_TYPE_AUDIO})
+        items_to_process_extractor: List[Dict[str, Any]] = []
+        for media_url in valid_image_media_urls:
+            details = items_for_filtering[media_url]
+            items_to_process_extractor.append(
+                {
+                    "page_url": details["page_url"],
+                    "media_url": media_url,
+                    "type": MEDIA_TYPE_IMAGE,
+                }
+            )
+        for media_url in valid_audio_media_urls:
+            details = items_for_filtering[media_url]
+            items_to_process_extractor.append(
+                {
+                    "page_url": details["page_url"],
+                    "media_url": media_url,
+                    "type": MEDIA_TYPE_AUDIO,
+                }
+            )
 
-        extractor_results: List[Dict[str, Any]] = []
-        if items_to_process:
+        extractor_results_by_page: Dict[str, Dict[str, Any]] = {}
+        if items_to_process_extractor:
             try:
-                extractor_results = self.extractor.process_batch(
-                    items_to_process, apply_denoising=request.apply_denoising
+                raw_extractor_results = self.extractor.process_batch(
+                    items_to_process_extractor, apply_denoising=request.apply_denoising
                 )
+
+                for res in raw_extractor_results:
+                    extractor_results_by_page[res["url"]] = res
+
             except Exception as e:
                 logger.error(
                     f"Critical error during extractor.process_batch: {e}", exc_info=True
                 )
 
-                for item in items_to_process:
-                    urls_failed_filtering[item["url"]] = (
-                        f"Extractor batch processing error: {e}"
-                    )
-
-        results_map: Dict[str, Dict[str, Any]] = {
-            res["url"]: res for res in extractor_results
-        }
+                for item in items_to_process_extractor:
+                    page_url = item["page_url"]
+                    if page_url not in early_failures_by_page:
+                        early_failures_by_page[page_url] = (
+                            feature_pb2.Status.FAILED_PROCESSING,
+                            f"Extractor batch processing error: {e}",
+                        )
 
         logger.info("Constructing gRPC response...")
-        for url, original_item in original_items_map.items():
-            feature_result = feature_pb2.FeatureResult(url=url)
+        for page_url, original_item in original_items_map_by_page.items():
 
-            if url in urls_failed_filtering:
+            feature_result = feature_pb2.FeatureResult(url=page_url)
 
-                feature_result.status = feature_pb2.Status.FAILED_DOWNLOAD
-                feature_result.error_message = urls_failed_filtering[url]
-            elif url in results_map:
+            if page_url in early_failures_by_page:
 
-                internal_result = results_map[url]
+                status_enum, error_msg = early_failures_by_page[page_url]
+                feature_result.status = status_enum
+                feature_result.error_message = error_msg
+            elif page_url in extractor_results_by_page:
+
+                internal_result = extractor_results_by_page[page_url]
                 internal_status = internal_result["status"]
 
                 feature_result.status = STATUS_MAP_TO_PROTO.get(
@@ -191,13 +213,12 @@ class FeatureExtractionService(feature_pb2_grpc.FeatureServiceServicer):
                 ):
                     feature_vector_np: np.ndarray = internal_result["feature_vector"]
                     try:
-
                         feature_result.feature_vector = feature_vector_np.astype(
                             np.float32
                         ).tobytes()
                     except Exception as e:
                         logger.error(
-                            f"Failed to serialize feature vector for {url}: {e}"
+                            f"Failed to serialize feature vector for page {page_url} (media: {original_item.media_url}): {e}"
                         )
                         feature_result.status = feature_pb2.Status.FAILED_PROCESSING
                         feature_result.error_message = (
@@ -207,11 +228,11 @@ class FeatureExtractionService(feature_pb2_grpc.FeatureServiceServicer):
             else:
 
                 logger.error(
-                    f"URL {url} was not found in filtering failures or extractor results."
+                    f"Page URL {page_url} (media: {original_item.media_url}) was not found in early failures or extractor results."
                 )
                 feature_result.status = feature_pb2.Status.FAILED_PROCESSING
                 feature_result.error_message = (
-                    "Internal Server Error: Result not found."
+                    "Internal Server Error: Result not found after processing."
                 )
 
             response.results.append(feature_result)

@@ -4,8 +4,8 @@ from itemadapter import ItemAdapter
 
 
 try:
-    from . import feature_pb2 
-    from . import feature_pb2_grpc 
+    from src.generated import feature_pb2 
+    from src.generated import feature_pb2_grpc 
 
     GRPC_AVAILABLE = True
 except ImportError as e:

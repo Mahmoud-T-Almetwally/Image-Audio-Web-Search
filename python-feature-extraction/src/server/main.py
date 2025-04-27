@@ -72,7 +72,7 @@ def serve():
     try:
         server.add_insecure_port(server_address)
         server.start()
-        logger.info(f"🚀 Feature Extraction Server started successfully!")
+        logger.info(f"Feature Extraction Server started successfully!")
         logger.info(f"Listening on: {server_address}")
         logger.info(f"Max workers: {max_workers}")
 

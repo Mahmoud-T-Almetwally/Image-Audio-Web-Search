@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package scrape;
+
+service ScraperService {
+
+  rpc StartScrape(StartScrapeRequest) returns (StartScrapeResponse);
+
+  rpc GetScrapeStatus(ScrapeStatusRequest) returns (ScrapeStatusResponse);
+}
+
+message StartScrapeRequest {
+  string start_url = 1;
+
+  string allowed_domains = 2;
+  int32 depth_limit = 3;
+  string crawl_strategy = 4;
+  bool use_playwright = 5;
+}
+
+message StartScrapeResponse {
+  string job_id = 1;
+  Status status = 2;
+  string message = 3;
+}
+
+enum Status {
+  UNKNOWN = 0;
+  ACCEPTED = 1;
+  REJECTED = 2;
+}
+
+message ScrapeStatusRequest { string job_id = 1; }
+message ScrapeStatusResponse {
+  string job_id = 1;
+  ScrapeJobState state = 2;
+  string message = 3;
+  int32 items_scraped = 4;
+}
+enum ScrapeJobState {
+  STATE_UNKNOWN = 0;
+  PENDING = 1;
+  RUNNING = 2;
+  COMPLETED = 3;
+  FAILED = 4;
+}

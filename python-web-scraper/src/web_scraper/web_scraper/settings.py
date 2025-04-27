@@ -7,14 +7,14 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
-BOT_NAME = "web_scraper"
+BOT_NAME = 'web_scraper' # Or your project name
 
-SPIDER_MODULES = ["web_scraper.spiders"]
-NEWSPIDER_MODULE = "web_scraper.spiders"
+SPIDER_MODULES = ['web_scraper.web_scraper.spiders']
+NEWSPIDER_MODULE = 'web_scraper.web_scraper.spiders'
+USER_AGENT = 'Mozilla/5.0 (compatible; MyMediaBot/1.0; +http://mywebsite.com/botinfo)' # CHANGE THIS
+ROBOTSTXT_OBEY = True
+COOKIES_ENABLED = False
 
-
-# Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = "web_scraper (+http://www.yourdomain.com)"
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
@@ -60,11 +60,35 @@ ROBOTSTXT_OBEY = True
 #    "scrapy.extensions.telnet.TelnetConsole": None,
 #}
 
+DOWNLOAD_HANDLERS = {
+    "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+    "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+}
+TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+PLAYWRIGHT_BROWSER_TYPE = 'chromium' # Or 'firefox', 'webkit'
+PLAYWRIGHT_LAUNCH_OPTIONS = {
+    'headless': True,
+    'args': [ # Optional arguments for stability/performance in Linux containers
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage", 
+        # "--single-process", # Can sometimes help with resource usage but might affect stability
+    ] 
+}
+
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    "web_scraper.pipelines.WebScraperPipeline": 300,
-#}
+ITEM_PIPELINES = {
+   "web_scraper.web_scraper.pipelines.FeatureExtractorPipeline": 300,
+}
+
+DEPTH_LIMIT = 2
+
+FEATURE_EXTRACTOR_ADDRESS = 'python-feature-extraction:50051' 
+
+PIPELINE_BATCH_SIZE = 100 
+
+LOG_LEVEL = 'INFO'
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
@@ -88,5 +112,4 @@ ROBOTSTXT_OBEY = True
 #HTTPCACHE_STORAGE = "scrapy.extensions.httpcache.FilesystemCacheStorage"
 
 # Set settings whose default value is deprecated to a future-proof value
-TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 FEED_EXPORT_ENCODING = "utf-8"
