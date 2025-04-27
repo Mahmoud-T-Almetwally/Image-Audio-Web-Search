@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-import feature_pb2 as feature__pb2
+from . import feature_pb2 as feature__pb2
 
 GRPC_GENERATED_VERSION = '1.71.0'
 GRPC_VERSION = grpc.__version__
