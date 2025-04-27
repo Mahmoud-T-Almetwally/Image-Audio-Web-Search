@@ -9,6 +9,12 @@ import soundfile as sf
 import librosa
 from typing import List, Dict, Optional, Tuple
 import numpy as np
+from processing.audio import denoise_audio_spectral_gate
+from processing.image import denoise_image_bilateral, denoise_image_nlm
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class MambaVisionModel:
@@ -61,7 +67,7 @@ class MambaVisionModel:
 
     @torch.inference_mode()
     def get_features_batch(
-        self, input_img_urls: List[str]
+        self, input_img_urls: List[str], apply_denoise:bool = True
     ) -> Dict[str, Optional[np.ndarray]]:
         """
         Downloads images from URLs, preprocesses them, extracts features in a batch,
@@ -85,6 +91,10 @@ class MambaVisionModel:
                 response.raise_for_status()
 
                 image = Image.open(BytesIO(response.content)).convert("RGB")
+
+                if apply_denoise:
+                    logger.debug(f"Applying denoising to image from {url}")
+                    image = denoise_image_bilateral(image)
 
                 input_tensor = self.transform(image)
                 processed_tensors.append(input_tensor)
@@ -172,7 +182,7 @@ class CLAPModel:
 
     @torch.inference_mode()
     def get_features_batch(
-        self, input_audio_urls: List[str]
+        self, input_audio_urls: List[str], apply_denoise:bool = True
     ) -> Dict[str, Optional[np.ndarray]]:
         """
         Downloads audio from URLs, preprocesses them using the CLAP processor,
@@ -210,6 +220,10 @@ class CLAPModel:
                         orig_sr=original_sr,
                         target_sr=self.target_sampling_rate,
                     )
+
+                if apply_denoise:
+                    logger.debug(f"Applying denoising to audio from {url}")
+                    audio_waveform = denoise_audio_spectral_gate(audio_waveform, sampling_rate=self.target_sampling_rate)
 
                 raw_audio_data.append(audio_waveform)
                 url_order.append(url)
