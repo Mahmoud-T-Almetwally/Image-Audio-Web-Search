@@ -4,4 +4,8 @@ env/*
 mamba
 mamba/*
 
+*/__pycache__
+__pycache__
+__pycache__/*
+
 getFileStructure.py
