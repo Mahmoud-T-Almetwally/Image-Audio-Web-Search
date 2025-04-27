@@ -50,3 +50,34 @@ def denoise_audio_spectral_gate(
     except Exception as e:
         logger.error(f"Error during spectral gate denoising: {e}")
         return audio_waveform
+
+
+if __name__ == "__main__":
+
+    print("\n--- Audio Denoising Example (Requires noisereduce & librosa) ---")
+    if NOISEREDUCE_AVAILABLE:
+        try:
+            import librosa
+
+            sr_test = 16000
+            duration = 5
+            signal = np.sin(2 * np.pi * 440.0 * np.arange(sr_test * duration) / sr_test)
+            noise = np.random.randn(len(signal)) * 0.1
+            noisy_signal = signal + noise
+
+            print("Attempting Spectral Gate Denoising...")
+            denoised_audio = denoise_audio_spectral_gate(noisy_signal, sr_test)
+
+            print(
+                f"Spectral Gate applied. Original length: {len(noisy_signal)}, Denoised length: {len(denoised_audio)}"
+            )
+
+        except ImportError:
+            print(
+                "Skipping audio denoising example: librosa (for dummy data) not installed."
+            )
+        except Exception as e:
+            print(f"Error running audio denoising example: {e}")
+
+    else:
+        print("Skipping audio denoising example: noisereduce not installed.")

@@ -91,3 +91,30 @@ def denoise_image_nlm(
     except Exception as e:
         logger.error(f"Error during Non-Local Means denoising: {e}")
         return img
+
+
+if __name__ == "__main__":
+
+    print("--- Image Denoising Examples (Requires OpenCV) ---")
+    if OPENCV_AVAILABLE:
+        try:
+
+            dummy_img_array = (
+                np.random.rand(100, 100, 3) * 150 + np.random.rand(100, 100, 3) * 50
+            ).astype(np.uint8)
+            dummy_img = Image.fromarray(dummy_img_array)
+
+            print("Attempting Bilateral Filter...")
+            denoised_bilateral = denoise_image_bilateral(dummy_img)
+
+            print("Bilateral Filter applied (check logs/output file).")
+
+            print("Attempting Non-Local Means Filter...")
+            denoised_nlm = denoise_image_nlm(dummy_img)
+
+            print("NLM Filter applied (check logs/output file).")
+
+        except Exception as e:
+            print(f"Error running image denoising example: {e}")
+    else:
+        print("Skipping image denoising examples: OpenCV not installed.")

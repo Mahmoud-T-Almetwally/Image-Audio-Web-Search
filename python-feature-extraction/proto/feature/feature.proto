@@ -1,0 +1,44 @@
+
+syntax = "proto3";
+
+package feature;
+
+service FeatureService {
+
+  rpc ProcessUrls(ProcessUrlsRequest) returns (ProcessUrlsResponse);
+}
+
+message UrlItem {
+  string url = 1;
+  MediaType type = 2;
+}
+
+enum MediaType {
+  UNKNOWN = 0;
+  IMAGE = 1;
+  AUDIO = 2;
+}
+
+message ProcessUrlsRequest {
+  repeated UrlItem items = 1;
+
+  bool apply_denoising = 2;
+}
+
+message FeatureResult {
+  string url = 1;
+  Status status = 2;
+  string error_message = 3;
+
+  bytes feature_vector = 4;
+}
+
+enum Status {
+  STATUS_UNKNOWN = 0;
+  SUCCESS = 1;
+  FAILED_DOWNLOAD = 2;
+  FAILED_PROCESSING = 3;
+  FAILED_UNSUPPORTED_TYPE = 4;
+}
+
+message ProcessUrlsResponse { repeated FeatureResult results = 1; }
