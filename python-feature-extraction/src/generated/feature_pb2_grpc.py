@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from . import feature_pb2 as feature__pb2
+import feature_pb2 as feature__pb2
 
 GRPC_GENERATED_VERSION = '1.71.0'
 GRPC_VERSION = grpc.__version__
@@ -25,7 +25,7 @@ if _version_not_supported:
     )
 
 
-class FeatureServiceStub(object):
+class FeatureUrlServiceStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -35,13 +35,13 @@ class FeatureServiceStub(object):
             channel: A grpc.Channel.
         """
         self.ProcessUrls = channel.unary_unary(
-                '/feature.FeatureService/ProcessUrls',
+                '/feature.FeatureUrlService/ProcessUrls',
                 request_serializer=feature__pb2.ProcessUrlsRequest.SerializeToString,
                 response_deserializer=feature__pb2.ProcessUrlsResponse.FromString,
                 _registered_method=True)
 
 
-class FeatureServiceServicer(object):
+class FeatureUrlServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def ProcessUrls(self, request, context):
@@ -51,7 +51,7 @@ class FeatureServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
 
-def add_FeatureServiceServicer_to_server(servicer, server):
+def add_FeatureUrlServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'ProcessUrls': grpc.unary_unary_rpc_method_handler(
                     servicer.ProcessUrls,
@@ -60,13 +60,13 @@ def add_FeatureServiceServicer_to_server(servicer, server):
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'feature.FeatureService', rpc_method_handlers)
+            'feature.FeatureUrlService', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('feature.FeatureService', rpc_method_handlers)
+    server.add_registered_method_handlers('feature.FeatureUrlService', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.
-class FeatureService(object):
+class FeatureUrlService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -83,9 +83,81 @@ class FeatureService(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/feature.FeatureService/ProcessUrls',
+            '/feature.FeatureUrlService/ProcessUrls',
             feature__pb2.ProcessUrlsRequest.SerializeToString,
             feature__pb2.ProcessUrlsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+
+class FeatureBytesServiceStub(object):
+    """Missing associated documentation comment in .proto file."""
+
+    def __init__(self, channel):
+        """Constructor.
+
+        Args:
+            channel: A grpc.Channel.
+        """
+        self.ProcessBytes = channel.unary_unary(
+                '/feature.FeatureBytesService/ProcessBytes',
+                request_serializer=feature__pb2.ProcessBytesRequest.SerializeToString,
+                response_deserializer=feature__pb2.ProcessBytesResponse.FromString,
+                _registered_method=True)
+
+
+class FeatureBytesServiceServicer(object):
+    """Missing associated documentation comment in .proto file."""
+
+    def ProcessBytes(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+
+def add_FeatureBytesServiceServicer_to_server(servicer, server):
+    rpc_method_handlers = {
+            'ProcessBytes': grpc.unary_unary_rpc_method_handler(
+                    servicer.ProcessBytes,
+                    request_deserializer=feature__pb2.ProcessBytesRequest.FromString,
+                    response_serializer=feature__pb2.ProcessBytesResponse.SerializeToString,
+            ),
+    }
+    generic_handler = grpc.method_handlers_generic_handler(
+            'feature.FeatureBytesService', rpc_method_handlers)
+    server.add_generic_rpc_handlers((generic_handler,))
+    server.add_registered_method_handlers('feature.FeatureBytesService', rpc_method_handlers)
+
+
+ # This class is part of an EXPERIMENTAL API.
+class FeatureBytesService(object):
+    """Missing associated documentation comment in .proto file."""
+
+    @staticmethod
+    def ProcessBytes(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/feature.FeatureBytesService/ProcessBytes',
+            feature__pb2.ProcessBytesRequest.SerializeToString,
+            feature__pb2.ProcessBytesResponse.FromString,
             options,
             channel_credentials,
             insecure,

@@ -12,6 +12,7 @@ from extraction.extractor import (
     STATUS_FAILED_UNSUPPORTED_TYPE,
     MEDIA_TYPE_IMAGE,
     MEDIA_TYPE_AUDIO,
+    MEDIA_TYPE_UNKNOWN,
 )
 from utils.network import filter_urls_by_headers
 
@@ -31,7 +32,7 @@ STATUS_MAP_TO_PROTO = {
 }
 
 
-class FeatureExtractionService(feature_pb2_grpc.FeatureServiceServicer):
+class FeatureURLExtractionService(feature_pb2_grpc.FeatureServiceServicer):
 
     def __init__(
         self,
@@ -241,3 +242,77 @@ class FeatureExtractionService(feature_pb2_grpc.FeatureServiceServicer):
             f"Sending ProcessUrls response with {len(response.results)} results."
         )
         return response
+
+
+class FeatureBytesExtractionService(feature_pb2_grpc.FeatureBytesServiceServicer):
+    def __init__(self, extractor: Extractor):
+        if extractor is None:
+            raise ValueError("Extractor instance cannot be None")
+        self.extractor = extractor
+
+    def ProcessBytes(self, request, context):
+        logger.info(
+            f"Received ProcessBytes request with {len(request.items)} items. Denoising: {request.apply_denoising}"
+        )
+
+        # Prepare items for extractor
+        items_to_process = []
+        for item in request.items:
+            internal_type = TYPE_MAP_FROM_PROTO.get(item.media_type, MEDIA_TYPE_UNKNOWN)
+            items_to_process.append({
+                "content": item.media_content,
+                "type": internal_type,
+                "ref_id": item.reference_id,
+            })
+
+        # Call extractor
+        try:
+            extractor_results = self.extractor.process_batch_bytes(
+                items_to_process, apply_denoising=request.apply_denoising
+            )
+        except Exception as e:
+            logger.error(f"Critical error during extractor.process_batch_bytes: {e}", exc_info=True)
+            # Return all failed
+            response = feature_pb2.ProcessBytesResponse()
+            for item in request.items:
+                response.results.append(
+                    feature_pb2.FeatureResult(
+                        url=item.reference_id,
+                        status=feature_pb2.Status.FAILED_PROCESSING,
+                        error_message=f"Extractor batch processing error: {e}",
+                        feature_vector=b"",
+                    )
+                )
+            return response
+
+        # Build response
+        response = feature_pb2.ProcessBytesResponse()
+        for res in extractor_results:
+            feature_result = feature_pb2.FeatureResult(
+                url=res["url"],
+                status=STATUS_MAP_TO_PROTO.get(res["status"], feature_pb2.Status.STATUS_UNKNOWN),
+                error_message=res.get("error_message", "") or "",
+            )
+            if (
+                res["status"] == STATUS_SUCCESS
+                and res.get("feature_vector") is not None
+            ):
+                try:
+                    feature_result.feature_vector = res["feature_vector"].astype(np.float32).tobytes()
+                except Exception as e:
+                    logger.error(
+                        f"Failed to serialize feature vector for ref_id {res['url']}: {e}"
+                    )
+                    feature_result.status = feature_pb2.Status.FAILED_PROCESSING
+                    feature_result.error_message = f"Failed to serialize vector: {e}"
+                    feature_result.feature_vector = b""
+            else:
+                feature_result.feature_vector = b""
+            response.results.append(feature_result)
+
+        logger.info(
+            f"Sending ProcessBytes response with {len(response.results)} results."
+        )
+        return response
+
+

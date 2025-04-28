@@ -9,8 +9,8 @@ import soundfile as sf
 import librosa
 from typing import List, Dict, Optional, Tuple
 import numpy as np
-from processing.audio import denoise_audio_spectral_gate 
-from processing.image import denoise_image_bilateral, denoise_image_nlm 
+from processing.audio import denoise_audio_spectral_gate
+from processing.image import denoise_image_bilateral, denoise_image_nlm
 
 import logging
 
@@ -21,7 +21,7 @@ class MambaVisionModel:
 
     DEFAULT_INPUT_RES = (3, 256, 256)
     REQUESTS_HEADERS = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
 
     def __init__(
@@ -67,7 +67,7 @@ class MambaVisionModel:
 
     @torch.inference_mode()
     def get_features_batch(
-        self, input_img_urls: List[str], apply_denoise:bool = True
+        self, input_img_urls: List[str], apply_denoise: bool = True
     ) -> Dict[str, Optional[np.ndarray]]:
         """
         Downloads images from URLs, preprocesses them, extracts features in a batch,
@@ -87,7 +87,9 @@ class MambaVisionModel:
 
         for url in input_img_urls:
             try:
-                response = requests.get(url, stream=True, timeout=10, headers=self.REQUESTS_HEADERS)
+                response = requests.get(
+                    url, stream=True, timeout=10, headers=self.REQUESTS_HEADERS
+                )
                 response.raise_for_status()
 
                 image = Image.open(BytesIO(response.content)).convert("RGB")
@@ -133,6 +135,54 @@ class MambaVisionModel:
 
         return results
 
+    def get_features_batch_from_bytes(
+        self, image_bytes_list: List[bytes], apply_denoise: bool = True
+    ) -> List[Optional[np.ndarray]]:
+        processed_tensors = []
+        results = {f"uploaded_image_{i}": None for i in range(len(image_bytes_list))}
+
+        for image_bytes in image_bytes_list:
+            try:
+                image = Image.open(BytesIO(image_bytes)).convert("RGB")
+
+                if apply_denoise:
+                    logger.debug(f"Applying denoising to image from {url}")
+                    image = denoise_image_bilateral(image)
+
+                input_tensor = self.transform(image)
+                processed_tensors.append(input_tensor)
+
+            except (IOError, Image.UnidentifiedImageError) as e:
+                print(f"Error opening or processing image {url}: {e}")
+            except Exception as e:
+                print(f"Unexpected error processing {url}: {e}")
+
+        if not processed_tensors:
+            print("No images could be processed successfully.")
+            return results
+
+        try:
+            batch_tensor = torch.stack(processed_tensors).to(self.device)
+            print(f"Processing batch of size: {batch_tensor.size(0)}")
+        except Exception as e:
+            print(f"Error stacking tensors: {e}")
+
+            return results
+
+        try:
+
+            batch_features, _ = self.model(batch_tensor)
+
+            feature_vectors_np = batch_features.detach().cpu().numpy()
+
+            for i in range(len(image_bytes_list)):
+                results[f"uploaded_image{i}"] = feature_vectors_np[i]
+
+        except Exception as e:
+            print(f"Error during model inference or feature processing: {e}")
+
+        return results
+
 
 class CLAPModel:
 
@@ -140,7 +190,7 @@ class CLAPModel:
     DEFAULT_PROCESSOR_NAME = "laion/larger_clap_general"
 
     REQUESTS_HEADERS = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
 
     def __init__(
@@ -182,7 +232,7 @@ class CLAPModel:
 
     @torch.inference_mode()
     def get_features_batch(
-        self, input_audio_urls: List[str], apply_denoise:bool = True
+        self, input_audio_urls: List[str], apply_denoise: bool = True
     ) -> Dict[str, Optional[np.ndarray]]:
         """
         Downloads audio from URLs, preprocesses them using the CLAP processor,
@@ -204,7 +254,9 @@ class CLAPModel:
         for url in input_audio_urls:
             try:
                 print(f"Processing URL: {url}")
-                response = requests.get(url, stream=True, timeout=15, headers=self.REQUESTS_HEADERS)
+                response = requests.get(
+                    url, stream=True, timeout=15, headers=self.REQUESTS_HEADERS
+                )
                 response.raise_for_status()
 
                 audio_waveform, original_sr = librosa.load(
@@ -223,7 +275,9 @@ class CLAPModel:
 
                 if apply_denoise:
                     logger.debug(f"Applying denoising to audio from {url}")
-                    audio_waveform = denoise_audio_spectral_gate(audio_waveform, sampling_rate=self.target_sampling_rate)
+                    audio_waveform = denoise_audio_spectral_gate(
+                        audio_waveform, sampling_rate=self.target_sampling_rate
+                    )
 
                 raw_audio_data.append(audio_waveform)
                 url_order.append(url)
@@ -269,6 +323,83 @@ class CLAPModel:
 
             for i, url in enumerate(url_order):
                 results[url] = feature_vectors_np[i]
+            print("Mapped features back to URLs.")
+
+        except Exception as e:
+            print(f"Error during model inference or feature post-processing: {e}")
+
+        return results
+
+    def get_features_batch_from_bytes(
+        self, audio_bytes_list: List[bytes], apply_denoise: bool = True
+    ) -> List[Optional[np.ndarray]]:
+        raw_audio_data = []
+        results = {f"uploaded_audio{i}": None for i in range(len(audio_bytes_list))}
+
+        for audio_bytes in audio_bytes_list:
+            try:
+
+                audio_waveform, original_sr = librosa.load(
+                    BytesIO(audio_bytes), sr=None, mono=True
+                )
+
+                if original_sr != self.target_sampling_rate:
+                    print(
+                        f"Resampling {url} from {original_sr} Hz to {self.target_sampling_rate} Hz"
+                    )
+                    audio_waveform = librosa.resample(
+                        audio_waveform,
+                        orig_sr=original_sr,
+                        target_sr=self.target_sampling_rate,
+                    )
+
+                if apply_denoise:
+                    logger.debug(f"Applying denoising to audio from {url}")
+                    audio_waveform = denoise_audio_spectral_gate(
+                        audio_waveform, sampling_rate=self.target_sampling_rate
+                    )
+
+                raw_audio_data.append(audio_waveform)
+                print(f"Successfully loaded and preprocessed: {url}")
+
+            except (sf.SoundFileError, RuntimeError, TypeError, ValueError) as e:
+
+                print(f"Error loading/processing audio data from {url}: {e}")
+            except Exception as e:
+                print(f"Unexpected error processing {url}: {e}")
+
+        if not raw_audio_data:
+            print("No audio files could be processed successfully.")
+            return results
+
+        try:
+            print(f"Processing batch of size: {len(raw_audio_data)}")
+
+            inputs = self.processor(
+                audios=raw_audio_data,
+                return_tensors="pt",
+                sampling_rate=self.target_sampling_rate,
+                padding=True,
+            )
+
+            inputs = inputs.to(self.device)
+            print("Batch processed by CLAP processor.")
+
+        except Exception as e:
+            print(f"Error during CLAP processing stage: {e}")
+
+            return results
+
+        try:
+            print("Extracting features using CLAP model...")
+
+            audio_features = self.model.get_audio_features(**inputs)
+            print(f"Extracted features shape: {audio_features.shape}")
+
+            feature_vectors_np = audio_features.detach().cpu().numpy()
+
+            for i in range(len(audio_bytes_list)):
+                results[f"uploaded_audio_{i}"] = feature_vectors_np[i]
             print("Mapped features back to URLs.")
 
         except Exception as e:

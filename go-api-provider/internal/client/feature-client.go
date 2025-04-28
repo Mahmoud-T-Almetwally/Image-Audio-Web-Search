@@ -15,7 +15,7 @@ import (
 
 type FeatureExtractorClient struct {
 	conn *grpc.ClientConn
-	c    pb.FeatureServiceClient
+	c    pb.FeatureBytesServiceClient
 }
 
 func NewFeatureExtractorClient(address string) (*FeatureExtractorClient, error) {

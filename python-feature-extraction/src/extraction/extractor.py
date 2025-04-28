@@ -78,7 +78,7 @@ class Extractor:
         logger.info("Extractor initialization complete.")
 
     def process_batch(
-        self, items: List[Dict[str, Any]], apply_denoising: bool = False
+        self, items: List[Dict[str, Any]], apply_denoising: bool = True
     ) -> List[Dict[str, Any]]:
         """
         Processes a batch of URLs, extracting features based on their media type.
@@ -240,6 +240,176 @@ class Extractor:
         )
         return output_list
 
+    def process_batch_bytes(
+        self, items: List[Dict[str, Any]], apply_denoising: bool = True
+    ) -> List[Dict[str, Any]]:
+        """
+        Processes a batch of byte-based media items, extracting features based on their media type.
+
+        Args:
+            items (List[Dict[str, Any]]): A list of dictionaries, where each dict
+                must have 'ref_id' (str), 'content' (bytes), and 'type' (int,
+                matching MEDIA_TYPE_* constants).
+            apply_denoising (bool): Flag indicating whether to apply denoising.
+
+        Returns:
+            List[Dict[str, Any]]: A list of result dictionaries, one for each input item,
+                containing 'url' (this will be the REF_ID), 'status' (int),
+                'feature_vector' (Optional[np.ndarray]), and 'error_message' (Optional[str]).
+        """
+        logger.info(
+            f"Extractor received batch of {len(items)} byte items. Denoising: {apply_denoising}"
+        )
+
+        ref_id_details: Dict[str, Dict[str, Any]] = {}
+
+        image_bytes_to_process: List[bytes] = []
+        audio_bytes_to_process: List[bytes] = []
+        image_ref_ids: List[str] = []
+        audio_ref_ids: List[str] = []
+
+        final_results: Dict[str, Dict[str, Any]] = {}
+
+        for item in items:
+            content = item.get("content")
+            ref_id = item.get("ref_id")
+            media_type = item.get("type", MEDIA_TYPE_UNKNOWN)
+
+            if not content or not ref_id:
+                logger.warning(
+                    f"Skipping item due to missing ref_id or content: {item}"
+                )
+                continue
+
+            ref_id_details[ref_id] = item
+
+            status = None
+            error_msg = None
+
+            if media_type == MEDIA_TYPE_IMAGE:
+                if self.mamba_vision_model:
+                    image_bytes_to_process.append(content)
+                    image_ref_ids.append(ref_id)
+                else:
+                    status = STATUS_FAILED_PROCESSING
+                    error_msg = "Image processing unavailable (model init failed)."
+            elif media_type == MEDIA_TYPE_AUDIO:
+                if self.clap_model:
+                    audio_bytes_to_process.append(content)
+                    audio_ref_ids.append(ref_id)
+                else:
+                    status = STATUS_FAILED_PROCESSING
+                    error_msg = "Audio processing unavailable (model init failed)."
+            else:
+                status = STATUS_FAILED_UNSUPPORTED_TYPE
+                error_msg = f"Unsupported or unknown media type: {media_type}"
+
+            if status is not None:
+                final_results[ref_id] = {
+                    "url": ref_id,
+                    "status": status,
+                    "feature_vector": None,
+                    "error_message": error_msg,
+                }
+
+        image_results_by_ref_id: Dict[str, Optional[np.ndarray]] = {}
+        if image_bytes_to_process and self.mamba_vision_model:
+            logger.info(f"Processing {len(image_bytes_to_process)} images (bytes)...")
+            try:
+
+                raw_results = self.mamba_vision_model.get_features_batch_from_bytes(
+                    image_bytes_to_process, apply_denoising
+                )
+
+                image_results_by_ref_id = {
+                    ref_id: raw_results.get(f"uploaded_image_{i}")
+                    for i, ref_id in enumerate(image_ref_ids)
+                }
+                logger.info("Image batch processing (bytes) complete.")
+            except Exception as e:
+                logger.error(
+                    f"Error during MambaVision batch processing (bytes): {e}",
+                    exc_info=True,
+                )
+                for ref_id in image_ref_ids:
+                    if ref_id not in final_results:
+                        final_results[ref_id] = {
+                            "url": ref_id,
+                            "status": STATUS_FAILED_PROCESSING,
+                            "feature_vector": None,
+                            "error_message": f"Image batch processing error: {e}",
+                        }
+
+        audio_results_by_ref_id: Dict[str, Optional[np.ndarray]] = {}
+        if audio_bytes_to_process and self.clap_model:
+            logger.info(
+                f"Processing {len(audio_bytes_to_process)} audio files (bytes)..."
+            )
+            try:
+
+                raw_results = self.clap_model.get_features_batch_from_bytes(
+                    audio_bytes_to_process, apply_denoising
+                )
+                audio_results_by_ref_id = {
+                    ref_id: raw_results.get(f"uploaded_audio_{i}")
+                    for i, ref_id in enumerate(audio_ref_ids)
+                }
+                logger.info("Audio batch processing (bytes) complete.")
+            except Exception as e:
+                logger.error(
+                    f"Error during CLAP batch processing (bytes): {e}", exc_info=True
+                )
+                for ref_id in audio_ref_ids:
+                    if ref_id not in final_results:
+                        final_results[ref_id] = {
+                            "url": ref_id,
+                            "status": STATUS_FAILED_PROCESSING,
+                            "feature_vector": None,
+                            "error_message": f"Audio batch processing error: {e}",
+                        }
+
+        logger.info("Aggregating final results keyed by ref_id...")
+        output_list: List[Dict[str, Any]] = []
+
+        for ref_id, original_item_details in ref_id_details.items():
+
+            if ref_id in final_results:
+                output_list.append(final_results[ref_id])
+                continue
+
+            media_type = original_item_details.get("type")
+            feature_vector_data = None
+
+            if media_type == MEDIA_TYPE_IMAGE:
+                feature_vector_data = image_results_by_ref_id.get(ref_id)
+            elif media_type == MEDIA_TYPE_AUDIO:
+                feature_vector_data = audio_results_by_ref_id.get(ref_id)
+
+            status = (
+                STATUS_SUCCESS
+                if feature_vector_data is not None
+                else STATUS_FAILED_PROCESSING
+            )
+            error_msg = (
+                None
+                if status == STATUS_SUCCESS
+                else "Processing failed (download or model internal error)."
+            )
+
+            result_entry = {
+                "url": ref_id,
+                "status": status,
+                "feature_vector": feature_vector_data,
+                "error_message": error_msg,
+            }
+            final_results[ref_id] = result_entry
+            output_list.append(result_entry)
+
+        logger.info(
+            f"Extractor finished processing (bytes). Returning {len(output_list)} results."
+        )
+        return output_list
+
 
 if __name__ == "__main__":
     print("--- Extractor Example Usage ---")
@@ -248,12 +418,36 @@ if __name__ == "__main__":
         extractor = Extractor(device="cuda" if torch.cuda.is_available() else "cpu")
 
         test_items = [
-            {'page_url': 'http://page1.com/article', 'media_url': "https://images.pexels.com/photos/20787/pexels-photo.jpg?auto=compress&cs=tinysrgb&dpr=1&w=500", 'type': MEDIA_TYPE_IMAGE},
-            {'page_url': 'http://page2.com/sounds', 'media_url': "https://github.com/karolpiczak/ESC-50/raw/master/audio/1-100032-A-0.wav", 'type': MEDIA_TYPE_AUDIO},
-            {'page_url': 'http://page3.com/images', 'media_url': "http://inv.alid.url/image.jpg", 'type': MEDIA_TYPE_IMAGE}, # Will fail download in model class
-            {'page_url': 'http://page4.com/home', 'media_url': "https://www.google.com", 'type': MEDIA_TYPE_IMAGE}, # Will fail processing in model class
-            {'page_url': 'http://page5.com/files', 'media_url': "https://some.domain/file.txt", 'type': MEDIA_TYPE_UNKNOWN}, # Unsupported type
-            {'page_url': 'http://page6.com/music', 'media_url': "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", 'type': MEDIA_TYPE_AUDIO},
+            {
+                "page_url": "http://page1.com/article",
+                "media_url": "https://images.pexels.com/photos/20787/pexels-photo.jpg?auto=compress&cs=tinysrgb&dpr=1&w=500",
+                "type": MEDIA_TYPE_IMAGE,
+            },
+            {
+                "page_url": "http://page2.com/sounds",
+                "media_url": "https://github.com/karolpiczak/ESC-50/raw/master/audio/1-100032-A-0.wav",
+                "type": MEDIA_TYPE_AUDIO,
+            },
+            {
+                "page_url": "http://page3.com/images",
+                "media_url": "http://inv.alid.url/image.jpg",
+                "type": MEDIA_TYPE_IMAGE,
+            },
+            {
+                "page_url": "http://page4.com/home",
+                "media_url": "https://www.google.com",
+                "type": MEDIA_TYPE_IMAGE,
+            },
+            {
+                "page_url": "http://page5.com/files",
+                "media_url": "https://some.domain/file.txt",
+                "type": MEDIA_TYPE_UNKNOWN,
+            },
+            {
+                "page_url": "http://page6.com/music",
+                "media_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+                "type": MEDIA_TYPE_AUDIO,
+            },
         ]
 
         results = extractor.process_batch(test_items, apply_denoising=False)

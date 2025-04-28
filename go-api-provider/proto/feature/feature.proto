@@ -1,13 +1,15 @@
-
 syntax = "proto3";
-
-option go_package = "github.com/Mahmoud-T-Almetwally/Image-Audio-Web-Search/internal/client/featurepb"; 
 
 package feature;
 
-service FeatureService {
+option go_package = "github.com/Mahmoud-T-Almetwally/Image-Audio-Web-Search/internal/client/featurepb";
 
+service FeatureUrlService {
   rpc ProcessUrls(ProcessUrlsRequest) returns (ProcessUrlsResponse);
+}
+
+service FeatureBytesService {
+  rpc ProcessBytes(ProcessBytesRequest) returns (ProcessBytesResponse);
 }
 
 message UrlItem {
@@ -15,33 +17,40 @@ message UrlItem {
   MediaType type = 2;
   string page_url = 3;
 }
-
 enum MediaType {
   UNKNOWN = 0;
   IMAGE = 1;
   AUDIO = 2;
 }
-
 message ProcessUrlsRequest {
   repeated UrlItem items = 1;
-
   bool apply_denoising = 2;
 }
-
 message FeatureResult {
-  string media_url = 1;
+  string url = 1;
   Status status = 2;
   string error_message = 3;
-
   bytes feature_vector = 4;
 }
-
 enum Status {
   STATUS_UNKNOWN = 0;
   SUCCESS = 1;
   FAILED_DOWNLOAD = 2;
   FAILED_PROCESSING = 3;
   FAILED_UNSUPPORTED_TYPE = 4;
+  FAILED_DESERIALIZATION = 5;
+}
+message ProcessUrlsResponse { repeated FeatureResult results = 1; }
+
+message MediaItemBytes {
+  bytes media_content = 1;
+  MediaType media_type = 2;
+  string reference_id = 3;
 }
 
-message ProcessUrlsResponse { repeated FeatureResult results = 1; }
+message ProcessBytesRequest {
+  repeated MediaItemBytes items = 1;
+  bool apply_denoising = 2;
+}
+
+message ProcessBytesResponse { repeated FeatureResult results = 1; }

@@ -16,7 +16,7 @@ if src_dir not in sys.path:
 
 
 from extraction.extractor import Extractor
-from .feature_service import FeatureExtractionService
+from .feature_service import FeatureBytesExtractionService, FeatureURLExtractionService
 
 
 from generated import feature_pb2_grpc
@@ -58,7 +58,7 @@ def serve():
         )
         return
 
-    feature_service = FeatureExtractionService(
+    url_feature_service = FeatureURLExtractionService(
         extractor=extractor,
         filter_images=True,
         max_image_size_mb=25,
@@ -66,8 +66,18 @@ def serve():
         max_audio_size_mb=150,
     )
 
+    bytes_feature_service = FeatureBytesExtractionService(
+        extractor=extractor,
+        filter_images=True,
+        max_image_size_mb=25,
+        filter_audio=True,
+        max_audio_size_mb=150,
+    )
+
+
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=max_workers))
-    feature_pb2_grpc.add_FeatureServiceServicer_to_server(feature_service, server)
+    feature_pb2_grpc.add_FeatureUrlServiceServicer_to_server(url_feature_service, server)
+    feature_pb2_grpc.add_FeatureBytesServiceServicer_to_server(bytes_feature_service, server)
 
     try:
         server.add_insecure_port(server_address)

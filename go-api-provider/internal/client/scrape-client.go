@@ -16,7 +16,7 @@ type ScraperClient struct {
 }
 
 func NewScraperClient(address string) (*ScraperClient, error) {
-	conn, err := grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("did not connect to scraper service: %w", err)
 	}

@@ -19,101 +19,203 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	FeatureService_ProcessUrls_FullMethodName = "/feature.FeatureService/ProcessUrls"
+	FeatureUrlService_ProcessUrls_FullMethodName = "/feature.FeatureUrlService/ProcessUrls"
 )
 
-// FeatureServiceClient is the client API for FeatureService service.
+// FeatureUrlServiceClient is the client API for FeatureUrlService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type FeatureServiceClient interface {
+type FeatureUrlServiceClient interface {
 	ProcessUrls(ctx context.Context, in *ProcessUrlsRequest, opts ...grpc.CallOption) (*ProcessUrlsResponse, error)
 }
 
-type featureServiceClient struct {
+type featureUrlServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewFeatureServiceClient(cc grpc.ClientConnInterface) FeatureServiceClient {
-	return &featureServiceClient{cc}
+func NewFeatureUrlServiceClient(cc grpc.ClientConnInterface) FeatureUrlServiceClient {
+	return &featureUrlServiceClient{cc}
 }
 
-func (c *featureServiceClient) ProcessUrls(ctx context.Context, in *ProcessUrlsRequest, opts ...grpc.CallOption) (*ProcessUrlsResponse, error) {
+func (c *featureUrlServiceClient) ProcessUrls(ctx context.Context, in *ProcessUrlsRequest, opts ...grpc.CallOption) (*ProcessUrlsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ProcessUrlsResponse)
-	err := c.cc.Invoke(ctx, FeatureService_ProcessUrls_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, FeatureUrlService_ProcessUrls_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// FeatureServiceServer is the server API for FeatureService service.
-// All implementations must embed UnimplementedFeatureServiceServer
+// FeatureUrlServiceServer is the server API for FeatureUrlService service.
+// All implementations must embed UnimplementedFeatureUrlServiceServer
 // for forward compatibility.
-type FeatureServiceServer interface {
+type FeatureUrlServiceServer interface {
 	ProcessUrls(context.Context, *ProcessUrlsRequest) (*ProcessUrlsResponse, error)
-	mustEmbedUnimplementedFeatureServiceServer()
+	mustEmbedUnimplementedFeatureUrlServiceServer()
 }
 
-// UnimplementedFeatureServiceServer must be embedded to have
+// UnimplementedFeatureUrlServiceServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedFeatureServiceServer struct{}
+type UnimplementedFeatureUrlServiceServer struct{}
 
-func (UnimplementedFeatureServiceServer) ProcessUrls(context.Context, *ProcessUrlsRequest) (*ProcessUrlsResponse, error) {
+func (UnimplementedFeatureUrlServiceServer) ProcessUrls(context.Context, *ProcessUrlsRequest) (*ProcessUrlsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ProcessUrls not implemented")
 }
-func (UnimplementedFeatureServiceServer) mustEmbedUnimplementedFeatureServiceServer() {}
-func (UnimplementedFeatureServiceServer) testEmbeddedByValue()                        {}
+func (UnimplementedFeatureUrlServiceServer) mustEmbedUnimplementedFeatureUrlServiceServer() {}
+func (UnimplementedFeatureUrlServiceServer) testEmbeddedByValue()                           {}
 
-// UnsafeFeatureServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to FeatureServiceServer will
+// UnsafeFeatureUrlServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to FeatureUrlServiceServer will
 // result in compilation errors.
-type UnsafeFeatureServiceServer interface {
-	mustEmbedUnimplementedFeatureServiceServer()
+type UnsafeFeatureUrlServiceServer interface {
+	mustEmbedUnimplementedFeatureUrlServiceServer()
 }
 
-func RegisterFeatureServiceServer(s grpc.ServiceRegistrar, srv FeatureServiceServer) {
-	// If the following call pancis, it indicates UnimplementedFeatureServiceServer was
+func RegisterFeatureUrlServiceServer(s grpc.ServiceRegistrar, srv FeatureUrlServiceServer) {
+	// If the following call pancis, it indicates UnimplementedFeatureUrlServiceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&FeatureService_ServiceDesc, srv)
+	s.RegisterService(&FeatureUrlService_ServiceDesc, srv)
 }
 
-func _FeatureService_ProcessUrls_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _FeatureUrlService_ProcessUrls_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ProcessUrlsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(FeatureServiceServer).ProcessUrls(ctx, in)
+		return srv.(FeatureUrlServiceServer).ProcessUrls(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: FeatureService_ProcessUrls_FullMethodName,
+		FullMethod: FeatureUrlService_ProcessUrls_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FeatureServiceServer).ProcessUrls(ctx, req.(*ProcessUrlsRequest))
+		return srv.(FeatureUrlServiceServer).ProcessUrls(ctx, req.(*ProcessUrlsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// FeatureService_ServiceDesc is the grpc.ServiceDesc for FeatureService service.
+// FeatureUrlService_ServiceDesc is the grpc.ServiceDesc for FeatureUrlService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var FeatureService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "feature.FeatureService",
-	HandlerType: (*FeatureServiceServer)(nil),
+var FeatureUrlService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "feature.FeatureUrlService",
+	HandlerType: (*FeatureUrlServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "ProcessUrls",
-			Handler:    _FeatureService_ProcessUrls_Handler,
+			Handler:    _FeatureUrlService_ProcessUrls_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "feature.proto",
+}
+
+const (
+	FeatureBytesService_ProcessBytes_FullMethodName = "/feature.FeatureBytesService/ProcessBytes"
+)
+
+// FeatureBytesServiceClient is the client API for FeatureBytesService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type FeatureBytesServiceClient interface {
+	ProcessBytes(ctx context.Context, in *ProcessBytesRequest, opts ...grpc.CallOption) (*ProcessBytesResponse, error)
+}
+
+type featureBytesServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewFeatureBytesServiceClient(cc grpc.ClientConnInterface) FeatureBytesServiceClient {
+	return &featureBytesServiceClient{cc}
+}
+
+func (c *featureBytesServiceClient) ProcessBytes(ctx context.Context, in *ProcessBytesRequest, opts ...grpc.CallOption) (*ProcessBytesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ProcessBytesResponse)
+	err := c.cc.Invoke(ctx, FeatureBytesService_ProcessBytes_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// FeatureBytesServiceServer is the server API for FeatureBytesService service.
+// All implementations must embed UnimplementedFeatureBytesServiceServer
+// for forward compatibility.
+type FeatureBytesServiceServer interface {
+	ProcessBytes(context.Context, *ProcessBytesRequest) (*ProcessBytesResponse, error)
+	mustEmbedUnimplementedFeatureBytesServiceServer()
+}
+
+// UnimplementedFeatureBytesServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedFeatureBytesServiceServer struct{}
+
+func (UnimplementedFeatureBytesServiceServer) ProcessBytes(context.Context, *ProcessBytesRequest) (*ProcessBytesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ProcessBytes not implemented")
+}
+func (UnimplementedFeatureBytesServiceServer) mustEmbedUnimplementedFeatureBytesServiceServer() {}
+func (UnimplementedFeatureBytesServiceServer) testEmbeddedByValue()                             {}
+
+// UnsafeFeatureBytesServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to FeatureBytesServiceServer will
+// result in compilation errors.
+type UnsafeFeatureBytesServiceServer interface {
+	mustEmbedUnimplementedFeatureBytesServiceServer()
+}
+
+func RegisterFeatureBytesServiceServer(s grpc.ServiceRegistrar, srv FeatureBytesServiceServer) {
+	// If the following call pancis, it indicates UnimplementedFeatureBytesServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&FeatureBytesService_ServiceDesc, srv)
+}
+
+func _FeatureBytesService_ProcessBytes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProcessBytesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FeatureBytesServiceServer).ProcessBytes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FeatureBytesService_ProcessBytes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FeatureBytesServiceServer).ProcessBytes(ctx, req.(*ProcessBytesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// FeatureBytesService_ServiceDesc is the grpc.ServiceDesc for FeatureBytesService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var FeatureBytesService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "feature.FeatureBytesService",
+	HandlerType: (*FeatureBytesServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ProcessBytes",
+			Handler:    _FeatureBytesService_ProcessBytes_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

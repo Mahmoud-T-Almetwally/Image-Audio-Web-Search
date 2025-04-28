@@ -24,25 +24,34 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rfeature.proto\x12\x07\x66\x65\x61ture\"J\n\x07UrlItem\x12\x0b\n\x03url\x18\x01 \x01(\t\x12 \n\x04type\x18\x02 \x01(\x0e\x32\x12.feature.MediaType\x12\x10\n\x08page_url\x18\x03 \x01(\t\"N\n\x12ProcessUrlsRequest\x12\x1f\n\x05items\x18\x01 \x03(\x0b\x32\x10.feature.UrlItem\x12\x17\n\x0f\x61pply_denoising\x18\x02 \x01(\x08\"l\n\rFeatureResult\x12\x0b\n\x03url\x18\x01 \x01(\t\x12\x1f\n\x06status\x18\x02 \x01(\x0e\x32\x0f.feature.Status\x12\x15\n\rerror_message\x18\x03 \x01(\t\x12\x16\n\x0e\x66\x65\x61ture_vector\x18\x04 \x01(\x0c\">\n\x13ProcessUrlsResponse\x12\'\n\x07results\x18\x01 \x03(\x0b\x32\x16.feature.FeatureResult*.\n\tMediaType\x12\x0b\n\x07UNKNOWN\x10\x00\x12\t\n\x05IMAGE\x10\x01\x12\t\n\x05\x41UDIO\x10\x02*r\n\x06Status\x12\x12\n\x0eSTATUS_UNKNOWN\x10\x00\x12\x0b\n\x07SUCCESS\x10\x01\x12\x13\n\x0f\x46\x41ILED_DOWNLOAD\x10\x02\x12\x15\n\x11\x46\x41ILED_PROCESSING\x10\x03\x12\x1b\n\x17\x46\x41ILED_UNSUPPORTED_TYPE\x10\x04\x32Z\n\x0e\x46\x65\x61tureService\x12H\n\x0bProcessUrls\x12\x1b.feature.ProcessUrlsRequest\x1a\x1c.feature.ProcessUrlsResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rfeature.proto\x12\x07\x66\x65\x61ture\"P\n\x07UrlItem\x12\x11\n\tmedia_url\x18\x01 \x01(\t\x12 \n\x04type\x18\x02 \x01(\x0e\x32\x12.feature.MediaType\x12\x10\n\x08page_url\x18\x03 \x01(\t\"N\n\x12ProcessUrlsRequest\x12\x1f\n\x05items\x18\x01 \x03(\x0b\x32\x10.feature.UrlItem\x12\x17\n\x0f\x61pply_denoising\x18\x02 \x01(\x08\"l\n\rFeatureResult\x12\x0b\n\x03url\x18\x01 \x01(\t\x12\x1f\n\x06status\x18\x02 \x01(\x0e\x32\x0f.feature.Status\x12\x15\n\rerror_message\x18\x03 \x01(\t\x12\x16\n\x0e\x66\x65\x61ture_vector\x18\x04 \x01(\x0c\">\n\x13ProcessUrlsResponse\x12\'\n\x07results\x18\x01 \x03(\x0b\x32\x16.feature.FeatureResult\"e\n\x0eMediaItemBytes\x12\x15\n\rmedia_content\x18\x01 \x01(\x0c\x12&\n\nmedia_type\x18\x02 \x01(\x0e\x32\x12.feature.MediaType\x12\x14\n\x0creference_id\x18\x03 \x01(\t\"V\n\x13ProcessBytesRequest\x12&\n\x05items\x18\x01 \x03(\x0b\x32\x17.feature.MediaItemBytes\x12\x17\n\x0f\x61pply_denoising\x18\x02 \x01(\x08\"?\n\x14ProcessBytesResponse\x12\'\n\x07results\x18\x01 \x03(\x0b\x32\x16.feature.FeatureResult*.\n\tMediaType\x12\x0b\n\x07UNKNOWN\x10\x00\x12\t\n\x05IMAGE\x10\x01\x12\t\n\x05\x41UDIO\x10\x02*\x8e\x01\n\x06Status\x12\x12\n\x0eSTATUS_UNKNOWN\x10\x00\x12\x0b\n\x07SUCCESS\x10\x01\x12\x13\n\x0f\x46\x41ILED_DOWNLOAD\x10\x02\x12\x15\n\x11\x46\x41ILED_PROCESSING\x10\x03\x12\x1b\n\x17\x46\x41ILED_UNSUPPORTED_TYPE\x10\x04\x12\x1a\n\x16\x46\x41ILED_DESERIALIZATION\x10\x05\x32]\n\x11\x46\x65\x61tureUrlService\x12H\n\x0bProcessUrls\x12\x1b.feature.ProcessUrlsRequest\x1a\x1c.feature.ProcessUrlsResponse2b\n\x13\x46\x65\x61tureBytesService\x12K\n\x0cProcessBytes\x12\x1c.feature.ProcessBytesRequest\x1a\x1d.feature.ProcessBytesResponseB,Z*YOUR_MODULE_PATH/internal/client/featurepbb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'feature_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
-  DESCRIPTOR._loaded_options = None
-  _globals['_MEDIATYPE']._serialized_start=356
-  _globals['_MEDIATYPE']._serialized_end=402
-  _globals['_STATUS']._serialized_start=404
-  _globals['_STATUS']._serialized_end=518
+  _globals['DESCRIPTOR']._loaded_options = None
+  _globals['DESCRIPTOR']._serialized_options = b'Z*YOUR_MODULE_PATH/internal/client/featurepb'
+  _globals['_MEDIATYPE']._serialized_start=618
+  _globals['_MEDIATYPE']._serialized_end=664
+  _globals['_STATUS']._serialized_start=667
+  _globals['_STATUS']._serialized_end=809
   _globals['_URLITEM']._serialized_start=26
-  _globals['_URLITEM']._serialized_end=100
-  _globals['_PROCESSURLSREQUEST']._serialized_start=102
-  _globals['_PROCESSURLSREQUEST']._serialized_end=180
-  _globals['_FEATURERESULT']._serialized_start=182
-  _globals['_FEATURERESULT']._serialized_end=290
-  _globals['_PROCESSURLSRESPONSE']._serialized_start=292
-  _globals['_PROCESSURLSRESPONSE']._serialized_end=354
-  _globals['_FEATURESERVICE']._serialized_start=520
-  _globals['_FEATURESERVICE']._serialized_end=610
+  _globals['_URLITEM']._serialized_end=106
+  _globals['_PROCESSURLSREQUEST']._serialized_start=108
+  _globals['_PROCESSURLSREQUEST']._serialized_end=186
+  _globals['_FEATURERESULT']._serialized_start=188
+  _globals['_FEATURERESULT']._serialized_end=296
+  _globals['_PROCESSURLSRESPONSE']._serialized_start=298
+  _globals['_PROCESSURLSRESPONSE']._serialized_end=360
+  _globals['_MEDIAITEMBYTES']._serialized_start=362
+  _globals['_MEDIAITEMBYTES']._serialized_end=463
+  _globals['_PROCESSBYTESREQUEST']._serialized_start=465
+  _globals['_PROCESSBYTESREQUEST']._serialized_end=551
+  _globals['_PROCESSBYTESRESPONSE']._serialized_start=553
+  _globals['_PROCESSBYTESRESPONSE']._serialized_end=616
+  _globals['_FEATUREURLSERVICE']._serialized_start=811
+  _globals['_FEATUREURLSERVICE']._serialized_end=904
+  _globals['_FEATUREBYTESSERVICE']._serialized_start=906
+  _globals['_FEATUREBYTESSERVICE']._serialized_end=1004
 # @@protoc_insertion_point(module_scope)

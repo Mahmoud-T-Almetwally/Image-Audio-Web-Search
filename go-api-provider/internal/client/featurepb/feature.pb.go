@@ -78,6 +78,7 @@ const (
 	Status_FAILED_DOWNLOAD         Status = 2
 	Status_FAILED_PROCESSING       Status = 3
 	Status_FAILED_UNSUPPORTED_TYPE Status = 4
+	Status_FAILED_DESERIALIZATION  Status = 5
 )
 
 // Enum value maps for Status.
@@ -88,6 +89,7 @@ var (
 		2: "FAILED_DOWNLOAD",
 		3: "FAILED_PROCESSING",
 		4: "FAILED_UNSUPPORTED_TYPE",
+		5: "FAILED_DESERIALIZATION",
 	}
 	Status_value = map[string]int32{
 		"STATUS_UNKNOWN":          0,
@@ -95,6 +97,7 @@ var (
 		"FAILED_DOWNLOAD":         2,
 		"FAILED_PROCESSING":       3,
 		"FAILED_UNSUPPORTED_TYPE": 4,
+		"FAILED_DESERIALIZATION":  5,
 	}
 )
 
@@ -239,7 +242,7 @@ func (x *ProcessUrlsRequest) GetApplyDenoising() bool {
 
 type FeatureResult struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MediaUrl      string                 `protobuf:"bytes,1,opt,name=media_url,json=mediaUrl,proto3" json:"media_url,omitempty"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
 	Status        Status                 `protobuf:"varint,2,opt,name=status,proto3,enum=feature.Status" json:"status,omitempty"`
 	ErrorMessage  string                 `protobuf:"bytes,3,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
 	FeatureVector []byte                 `protobuf:"bytes,4,opt,name=feature_vector,json=featureVector,proto3" json:"feature_vector,omitempty"`
@@ -277,9 +280,9 @@ func (*FeatureResult) Descriptor() ([]byte, []int) {
 	return file_feature_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *FeatureResult) GetMediaUrl() string {
+func (x *FeatureResult) GetUrl() string {
 	if x != nil {
-		return x.MediaUrl
+		return x.Url
 	}
 	return ""
 }
@@ -349,6 +352,162 @@ func (x *ProcessUrlsResponse) GetResults() []*FeatureResult {
 	return nil
 }
 
+type MediaItemBytes struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MediaContent  []byte                 `protobuf:"bytes,1,opt,name=media_content,json=mediaContent,proto3" json:"media_content,omitempty"`
+	MediaType     MediaType              `protobuf:"varint,2,opt,name=media_type,json=mediaType,proto3,enum=feature.MediaType" json:"media_type,omitempty"`
+	ReferenceId   string                 `protobuf:"bytes,3,opt,name=reference_id,json=referenceId,proto3" json:"reference_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MediaItemBytes) Reset() {
+	*x = MediaItemBytes{}
+	mi := &file_feature_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MediaItemBytes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MediaItemBytes) ProtoMessage() {}
+
+func (x *MediaItemBytes) ProtoReflect() protoreflect.Message {
+	mi := &file_feature_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MediaItemBytes.ProtoReflect.Descriptor instead.
+func (*MediaItemBytes) Descriptor() ([]byte, []int) {
+	return file_feature_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *MediaItemBytes) GetMediaContent() []byte {
+	if x != nil {
+		return x.MediaContent
+	}
+	return nil
+}
+
+func (x *MediaItemBytes) GetMediaType() MediaType {
+	if x != nil {
+		return x.MediaType
+	}
+	return MediaType_UNKNOWN
+}
+
+func (x *MediaItemBytes) GetReferenceId() string {
+	if x != nil {
+		return x.ReferenceId
+	}
+	return ""
+}
+
+type ProcessBytesRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Items          []*MediaItemBytes      `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	ApplyDenoising bool                   `protobuf:"varint,2,opt,name=apply_denoising,json=applyDenoising,proto3" json:"apply_denoising,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ProcessBytesRequest) Reset() {
+	*x = ProcessBytesRequest{}
+	mi := &file_feature_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProcessBytesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProcessBytesRequest) ProtoMessage() {}
+
+func (x *ProcessBytesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_feature_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProcessBytesRequest.ProtoReflect.Descriptor instead.
+func (*ProcessBytesRequest) Descriptor() ([]byte, []int) {
+	return file_feature_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ProcessBytesRequest) GetItems() []*MediaItemBytes {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ProcessBytesRequest) GetApplyDenoising() bool {
+	if x != nil {
+		return x.ApplyDenoising
+	}
+	return false
+}
+
+type ProcessBytesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Results       []*FeatureResult       `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProcessBytesResponse) Reset() {
+	*x = ProcessBytesResponse{}
+	mi := &file_feature_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProcessBytesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProcessBytesResponse) ProtoMessage() {}
+
+func (x *ProcessBytesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_feature_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProcessBytesResponse.ProtoReflect.Descriptor instead.
+func (*ProcessBytesResponse) Descriptor() ([]byte, []int) {
+	return file_feature_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ProcessBytesResponse) GetResults() []*FeatureResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
 var File_feature_proto protoreflect.FileDescriptor
 
 const file_feature_proto_rawDesc = "" +
@@ -360,26 +519,39 @@ const file_feature_proto_rawDesc = "" +
 	"\bpage_url\x18\x03 \x01(\tR\apageUrl\"e\n" +
 	"\x12ProcessUrlsRequest\x12&\n" +
 	"\x05items\x18\x01 \x03(\v2\x10.feature.UrlItemR\x05items\x12'\n" +
-	"\x0fapply_denoising\x18\x02 \x01(\bR\x0eapplyDenoising\"\xa1\x01\n" +
-	"\rFeatureResult\x12\x1b\n" +
-	"\tmedia_url\x18\x01 \x01(\tR\bmediaUrl\x12'\n" +
+	"\x0fapply_denoising\x18\x02 \x01(\bR\x0eapplyDenoising\"\x96\x01\n" +
+	"\rFeatureResult\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12'\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x0f.feature.StatusR\x06status\x12#\n" +
 	"\rerror_message\x18\x03 \x01(\tR\ferrorMessage\x12%\n" +
 	"\x0efeature_vector\x18\x04 \x01(\fR\rfeatureVector\"G\n" +
 	"\x13ProcessUrlsResponse\x120\n" +
+	"\aresults\x18\x01 \x03(\v2\x16.feature.FeatureResultR\aresults\"\x8b\x01\n" +
+	"\x0eMediaItemBytes\x12#\n" +
+	"\rmedia_content\x18\x01 \x01(\fR\fmediaContent\x121\n" +
+	"\n" +
+	"media_type\x18\x02 \x01(\x0e2\x12.feature.MediaTypeR\tmediaType\x12!\n" +
+	"\freference_id\x18\x03 \x01(\tR\vreferenceId\"m\n" +
+	"\x13ProcessBytesRequest\x12-\n" +
+	"\x05items\x18\x01 \x03(\v2\x17.feature.MediaItemBytesR\x05items\x12'\n" +
+	"\x0fapply_denoising\x18\x02 \x01(\bR\x0eapplyDenoising\"H\n" +
+	"\x14ProcessBytesResponse\x120\n" +
 	"\aresults\x18\x01 \x03(\v2\x16.feature.FeatureResultR\aresults*.\n" +
 	"\tMediaType\x12\v\n" +
 	"\aUNKNOWN\x10\x00\x12\t\n" +
 	"\x05IMAGE\x10\x01\x12\t\n" +
-	"\x05AUDIO\x10\x02*r\n" +
+	"\x05AUDIO\x10\x02*\x8e\x01\n" +
 	"\x06Status\x12\x12\n" +
 	"\x0eSTATUS_UNKNOWN\x10\x00\x12\v\n" +
 	"\aSUCCESS\x10\x01\x12\x13\n" +
 	"\x0fFAILED_DOWNLOAD\x10\x02\x12\x15\n" +
 	"\x11FAILED_PROCESSING\x10\x03\x12\x1b\n" +
-	"\x17FAILED_UNSUPPORTED_TYPE\x10\x042Z\n" +
-	"\x0eFeatureService\x12H\n" +
-	"\vProcessUrls\x12\x1b.feature.ProcessUrlsRequest\x1a\x1c.feature.ProcessUrlsResponseBRZPgithub.com/Mahmoud-T-Almetwally/Image-Audio-Web-Search/internal/client/featurepbb\x06proto3"
+	"\x17FAILED_UNSUPPORTED_TYPE\x10\x04\x12\x1a\n" +
+	"\x16FAILED_DESERIALIZATION\x10\x052]\n" +
+	"\x11FeatureUrlService\x12H\n" +
+	"\vProcessUrls\x12\x1b.feature.ProcessUrlsRequest\x1a\x1c.feature.ProcessUrlsResponse2b\n" +
+	"\x13FeatureBytesService\x12K\n" +
+	"\fProcessBytes\x12\x1c.feature.ProcessBytesRequest\x1a\x1d.feature.ProcessBytesResponseB,Z*YOUR_MODULE_PATH/internal/client/featurepbb\x06proto3"
 
 var (
 	file_feature_proto_rawDescOnce sync.Once
@@ -394,27 +566,35 @@ func file_feature_proto_rawDescGZIP() []byte {
 }
 
 var file_feature_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_feature_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_feature_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_feature_proto_goTypes = []any{
-	(MediaType)(0),              // 0: feature.MediaType
-	(Status)(0),                 // 1: feature.Status
-	(*UrlItem)(nil),             // 2: feature.UrlItem
-	(*ProcessUrlsRequest)(nil),  // 3: feature.ProcessUrlsRequest
-	(*FeatureResult)(nil),       // 4: feature.FeatureResult
-	(*ProcessUrlsResponse)(nil), // 5: feature.ProcessUrlsResponse
+	(MediaType)(0),               // 0: feature.MediaType
+	(Status)(0),                  // 1: feature.Status
+	(*UrlItem)(nil),              // 2: feature.UrlItem
+	(*ProcessUrlsRequest)(nil),   // 3: feature.ProcessUrlsRequest
+	(*FeatureResult)(nil),        // 4: feature.FeatureResult
+	(*ProcessUrlsResponse)(nil),  // 5: feature.ProcessUrlsResponse
+	(*MediaItemBytes)(nil),       // 6: feature.MediaItemBytes
+	(*ProcessBytesRequest)(nil),  // 7: feature.ProcessBytesRequest
+	(*ProcessBytesResponse)(nil), // 8: feature.ProcessBytesResponse
 }
 var file_feature_proto_depIdxs = []int32{
 	0, // 0: feature.UrlItem.type:type_name -> feature.MediaType
 	2, // 1: feature.ProcessUrlsRequest.items:type_name -> feature.UrlItem
 	1, // 2: feature.FeatureResult.status:type_name -> feature.Status
 	4, // 3: feature.ProcessUrlsResponse.results:type_name -> feature.FeatureResult
-	3, // 4: feature.FeatureService.ProcessUrls:input_type -> feature.ProcessUrlsRequest
-	5, // 5: feature.FeatureService.ProcessUrls:output_type -> feature.ProcessUrlsResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0, // 4: feature.MediaItemBytes.media_type:type_name -> feature.MediaType
+	6, // 5: feature.ProcessBytesRequest.items:type_name -> feature.MediaItemBytes
+	4, // 6: feature.ProcessBytesResponse.results:type_name -> feature.FeatureResult
+	3, // 7: feature.FeatureUrlService.ProcessUrls:input_type -> feature.ProcessUrlsRequest
+	7, // 8: feature.FeatureBytesService.ProcessBytes:input_type -> feature.ProcessBytesRequest
+	5, // 9: feature.FeatureUrlService.ProcessUrls:output_type -> feature.ProcessUrlsResponse
+	8, // 10: feature.FeatureBytesService.ProcessBytes:output_type -> feature.ProcessBytesResponse
+	9, // [9:11] is the sub-list for method output_type
+	7, // [7:9] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_feature_proto_init() }
@@ -428,9 +608,9 @@ func file_feature_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_feature_proto_rawDesc), len(file_feature_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   4,
+			NumMessages:   7,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_feature_proto_goTypes,
 		DependencyIndexes: file_feature_proto_depIdxs,
