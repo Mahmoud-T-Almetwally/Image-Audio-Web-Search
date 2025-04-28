@@ -286,7 +286,7 @@ if __name__ == "__main__":
         "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
         "http://inv.alid.url/image.jpg",
         "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Dialog-error.svg/2048px-Dialog-error.svg.png",
-        "https://raw.githubusercontent.com/pytorch/pytorch/main/README.md",
+        "https://rawhubusercontent.com/pytorch/pytorch/main/README.md",
     ]
 
     extracted_features = processor.get_features_batch(image_urls)

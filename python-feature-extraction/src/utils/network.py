@@ -103,7 +103,7 @@ if __name__ == "__main__":
         "https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
         "http://inv.alid.url/image.jpg",
         "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Dialog-error.svg/2048px-Dialog-error.svg.png",
-        "https://raw.githubusercontent.com/pytorch/pytorch/main/README.md",
+        "https://rawhubusercontent.com/pytorch/pytorch/main/README.md",
         "https://github.com/karolpiczak/ESC-50/raw/master/audio/1-100032-A-0.wav",
         "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
     ]

@@ -9,7 +9,7 @@ service FeatureService {
 }
 
 message UrlItem {
-  string url = 1;
+  string media_url = 1;
   MediaType type = 2;
   string page_url = 3;
 }
@@ -27,7 +27,7 @@ message ProcessUrlsRequest {
 }
 
 message FeatureResult {
-  string url = 1;
+  string media_url = 1;
   Status status = 2;
   string error_message = 3;
 
