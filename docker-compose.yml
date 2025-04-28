@@ -1,0 +1,102 @@
+
+services:
+  db:
+    image: pgvector/pgvector:pg16 # Use image with pgvector bundled
+    container_name: postgres_db
+    environment:
+      # Use .env file or defaults
+      POSTGRES_DB: ${POSTGRES_DB:-mediasearch} 
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persist data
+    ports:
+      - "5432:5432" # Map port to host for direct access (optional)
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Add explicit restart policy
+    restart: unless-stopped 
+
+  feature-extractor:
+    build: ./python-feature-extraction
+    container_name: feature_extractor_service
+    environment:
+      FEATURE_SERVER_ADDRESS: "0.0.0.0:50051" # Listen on all interfaces inside container
+      # Optional: Specify device if not auto-detected well inside container
+      # DEVICE: "cuda" 
+      # Optional: Add PYTHONUNBUFFERED for better logging through docker compose
+      PYTHONUNBUFFERED: 1
+    # Optional: GPU configuration 
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1 
+    #           capabilities: [gpu]
+    ports:
+      - "50051:50051" 
+    networks:
+      - app_network
+    depends_on:
+      db: 
+        condition: service_healthy 
+    restart: unless-stopped
+
+  scraper:
+    build: ./python-web-scraper
+    container_name: scraper_service
+    environment:
+      SCRAPE_SERVER_ADDRESS: "0.0.0.0:50052"
+      GO_API_GRPC_ADDRESS: "go-api:50050" # Use service name 'go-api' and Go gRPC port
+      PYTHONUNBUFFERED: 1
+    ports:
+      - "50052:50052" 
+    networks:
+      - app_network
+    depends_on:
+      - go-api # Explicit dependency for the pipeline target
+    restart: unless-stopped
+
+  go-api:
+    build: ./go-api-provider
+    container_name: go_api_service
+    environment:
+      # Database connection
+      DB_HOST: db 
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      DB_NAME: ${POSTGRES_DB:-mediasearch}
+      DB_SSL_MODE: "disable" 
+      # gRPC Service Addresses
+      FEATURE_EXTRACTOR_ADDR: "feature-extractor:50051"
+      SCRAPER_ADDR: "scraper:50052"
+      # Server Ports
+      HTTP_SERVER_PORT: "8080" 
+      GRPC_SERVER_PORT: "50050"
+      
+    ports:
+      - "8080:8080"   # Map HTTP port to host
+      - "50050:50050"   # Map Go gRPC port to host (optional)
+    # --- Removed temp_media volume mount ---
+    networks:
+      - app_network
+    depends_on:
+      db:
+        condition: service_healthy
+      feature-extractor: 
+         condition: service_started # Can improve if FE adds a healthcheck
+    restart: unless-stopped
+
+volumes:
+  postgres_data: 
+
+networks:
+  app_network:   
+    driver: bridge 
