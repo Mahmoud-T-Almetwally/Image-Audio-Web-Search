@@ -8,16 +8,16 @@ func SetupRouter(handler *HTTPHandler) *gin.Engine {
 
 	router := gin.Default()
 
-	apiGroup := router.Group("/api/v1")
+	apiGroup := router.Group("/api/v1") 
 	{
 		apiGroup.POST("/scrape", handler.HandleScrapeURL)
 		apiGroup.POST("/search", handler.HandleSearch)
-		apiGroup.POST("/index", handler.HandleIndexDirect)
+		apiGroup.POST("/index", handler.HandleIndexDirect) 
 	}
 
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "UP"})
-	})
+	router.GET("/temp_media/:filename", handler.HandleServeTempMedia) 
+
+	router.GET("/health", func(c *gin.Context) { /* ... */ })
 
 	return router
 }

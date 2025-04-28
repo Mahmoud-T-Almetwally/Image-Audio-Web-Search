@@ -9,30 +9,30 @@ logger = logging.getLogger(__name__)
 PYTHON_EXECUTABLE = sys.executable
 SCRAPY_EXECUTABLE = shutil.which("scrapy") or "scrapy"
 
-# Directory containing the trigger.py file (server/)
+
 SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
-# Go up one level to get the 'src' directory
+
 SRC_DIR = os.path.dirname(SERVER_DIR)
-# The Scrapy project directory itself (where scrapy.cfg is)
+
 SCRAPY_PROJECT_DIR_CONFIG = os.path.join(SRC_DIR, "web_scraper")
 
-# Define the explicit Python path to the settings module *relative to SRC_DIR*
-SETTINGS_MODULE_PATH = "web_scraper.web_scraper.settings"  # This is correct
+
+SETTINGS_MODULE_PATH = "web_scraper.web_scraper.settings"
 
 
 async def launch_scrapy_crawl_async(
     job_id: str,
     start_url: str,
-    allowed_domains: str,  # Comma-separated string
+    allowed_domains: str,
     depth_limit: int,
     use_playwright: bool,
     crawl_strategy: str,
-)-> asyncio.subprocess.Process:
+) -> asyncio.subprocess.Process:
     """
     Launches a Scrapy crawl process as a non-blocking subprocess,
     setting PYTHONPATH and SCRAPY_SETTINGS_MODULE.
     """
-    # ... (Directory check for SCRAPY_PROJECT_DIR_CONFIG remains the same) ...
+
     if not os.path.isfile(os.path.join(SCRAPY_PROJECT_DIR_CONFIG, "scrapy.cfg")):
         logger.error(
             f"Scrapy config file (scrapy.cfg) not found at: {SCRAPY_PROJECT_DIR_CONFIG}"
@@ -55,16 +55,14 @@ async def launch_scrapy_crawl_async(
         f"use_playwright={use_playwright}",
         "-a",
         f"crawl_strategy={crawl_strategy}",
+        "-s",
+        f"JOB_ID={job_id}",
     ]
 
-    # Set CWD to the directory containing scrapy.cfg
     cwd = SCRAPY_PROJECT_DIR_CONFIG
 
-    # --- Set Environment Variables for the subprocess ---
     process_env = os.environ.copy()
 
-    # 1. Set PYTHONPATH: *Only* add the top-level 'src' directory.
-    #    This allows imports like 'src.generated' and 'web_scraper.web_scraper...'
     paths_to_add = [SRC_DIR]
     existing_pythonpath = process_env.get("PYTHONPATH")
     new_pythonpath = os.pathsep.join(paths_to_add)
@@ -73,7 +71,6 @@ async def launch_scrapy_crawl_async(
     else:
         process_env["PYTHONPATH"] = new_pythonpath
 
-    # 2. Explicitly set SCRAPY_SETTINGS_MODULE
     process_env["SCRAPY_SETTINGS_MODULE"] = SETTINGS_MODULE_PATH
 
     logger.info(f"Job ID [{job_id}]: Launching Scrapy crawl...")
@@ -89,19 +86,19 @@ async def launch_scrapy_crawl_async(
     try:
         process = await asyncio.create_subprocess_exec(
             *command_args,
-            stdout=asyncio.subprocess.PIPE, 
+            stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            cwd=cwd, 
-            env=process_env 
+            cwd=cwd,
+            env=process_env,
         )
-        
-        logger.info(f"Job ID [{job_id}]: Scrapy process started with PID: {process.pid}")
-        
-        # Start tasks but don't await them here
+
+        logger.info(
+            f"Job ID [{job_id}]: Scrapy process started with PID: {process.pid}"
+        )
+
         stdout_task = asyncio.create_task(read_stream(process.stdout, job_id, "stdout"))
         stderr_task = asyncio.create_task(read_stream(process.stderr, job_id, "stderr"))
-        
-        # Return the process object so the caller can wait/manage it
+
         return process
 
     except FileNotFoundError:
@@ -116,7 +113,6 @@ async def launch_scrapy_crawl_async(
         raise
 
 
-# ... (read_stream and __main__ block remain the same) ...
 async def read_stream(stream, job_id, stream_name):
     while True:
         line = await stream.readline()
@@ -136,11 +132,11 @@ async def main_test():
     print("--- Testing Scrapy Trigger ---")
     test_job_id = "test-job-123"
     test_url = "https://quotes.toscrape.com/"
-    process = None  # Initialize process variable
+    process = None
     stdout_task = None
     stderr_task = None
     try:
-        process = await launch_scrapy_crawl_async(  # Note: Changed to assign to process
+        process = await launch_scrapy_crawl_async(
             job_id=test_job_id,
             start_url=test_url,
             allowed_domains="quotes.toscrape.com",
@@ -148,12 +144,12 @@ async def main_test():
             use_playwright=False,
             crawl_strategy="default",
         )
-        timeout_seconds = 20  # Wait up to 20 seconds for the test crawl
+        timeout_seconds = 20
         try:
             logger.info(
                 f"Waiting up to {timeout_seconds}s for subprocess {process.pid} to complete..."
             )
-            # Wait for the process to terminate
+
             await asyncio.wait_for(process.wait(), timeout=timeout_seconds)
             logger.info(
                 f"Subprocess {process.pid} finished with return code: {process.returncode}"
@@ -163,17 +159,15 @@ async def main_test():
                 f"Subprocess {process.pid} did not complete within {timeout_seconds}s. Terminating."
             )
             try:
-                process.terminate()  # Ask it to terminate nicely
-                await asyncio.wait_for(process.wait(), timeout=5)  # Wait a bit more
+                process.terminate()
+                await asyncio.wait_for(process.wait(), timeout=5)
             except asyncio.TimeoutError:
                 logger.warning(
                     f"Subprocess {process.pid} did not terminate gracefully. Killing."
                 )
-                process.kill()  # Force kill
+                process.kill()
             except ProcessLookupError:
-                logger.info(
-                    f"Subprocess {process.pid} already exited."
-                )  # Handle race condition
+                logger.info(f"Subprocess {process.pid} already exited.")
             except Exception as term_err:
                 logger.error(f"Error during process termination: {term_err}")
                 if stdout_task:
@@ -191,7 +185,7 @@ async def main_test():
     except Exception as e:
         print(f"Error during trigger test: {e}")
     finally:
-        # Defensive check before terminating/killing again if needed
+
         if process and process.returncode is None:
             logger.warning(
                 f"Process {process.pid} still running in finally block, attempting kill."
@@ -199,7 +193,7 @@ async def main_test():
             try:
                 process.kill()
             except ProcessLookupError:
-                pass  # Already gone
+                pass
             except Exception as kill_err:
                 logger.error(f"Error killing process in finally block: {kill_err}")
 

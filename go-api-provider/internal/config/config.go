@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/viper"
 	"log"
 	"strings"
+	"os"
 )
 
 type Config struct {
@@ -20,6 +21,10 @@ type Config struct {
 	ScraperAddr          string `mapstructure:"SCRAPER_ADDR"`
 
 	HTTPServerPort string `mapstructure:"HTTP_SERVER_PORT"`
+    GRPCServerPort string `mapstructure:"GRPC_SERVER_PORT"`
+	
+	TempMediaDir  string `mapstructure:"TEMP_MEDIA_DIR"`
+    APIBaseURL    string `mapstructure:"API_BASE_URL"`
 
 	DefaultSearchLimit int `mapstructure:"DEFAULT_SEARCH_LIMIT"`
 }
@@ -34,10 +39,13 @@ func LoadConfig(path string) (config Config, err error) {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(`.`, `_`))
 
 	viper.SetDefault("HTTP_SERVER_PORT", "8080")
+	viper.SetDefault("GRPC_SERVER_PORT", "50050")
 	viper.SetDefault("DB_SSL_MODE", "disable")
 	viper.SetDefault("DEFAULT_SEARCH_LIMIT", 10)
 	viper.SetDefault("FEATURE_EXTRACTOR_ADDR", "localhost:50051")
 	viper.SetDefault("SCRAPER_ADDR", "localhost:50052")
+	viper.SetDefault("TEMP_MEDIA_DIR", "./temp_media")
+    viper.SetDefault("API_BASE_URL", "http://localhost:8080")
 
 	err = viper.ReadInConfig()
 	if err != nil {
@@ -61,6 +69,17 @@ func LoadConfig(path string) (config Config, err error) {
 	config.DBDSN = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		config.DBHost, config.DBPort, config.DBUser, config.DBPassword, config.DBName, config.DBSslMode)
 
-	log.Println("Configuration loaded successfully")
+		
+		err = os.MkdirAll(config.TempMediaDir, 0750) // Use 0750 for permissions
+		if err != nil {
+			log.Printf("Warning: Could not create temp media directory %s: %v", config.TempMediaDir, err)
+			// Decide if this is fatal - maybe not if the dir already exists, but could be permission issue
+			// err = nil // Optionally ignore if needed, but risky
+			return // Return error for safety
+		}
+		log.Printf("Using temporary media directory: %s", config.TempMediaDir)
+		
+		log.Println("Configuration loaded successfully")
+		
 	return
 }

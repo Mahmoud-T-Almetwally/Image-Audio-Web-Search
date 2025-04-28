@@ -1,0 +1,36 @@
+
+syntax = "proto3";
+
+package indexing;
+
+option go_package = "YOUR_MODULE_PATH/internal/client/indexingpb";
+
+service IndexingService {
+
+  rpc ProcessScrapedItems(ProcessScrapedItemsRequest)
+      returns (ProcessScrapedItemsResponse);
+}
+
+enum MediaType {
+  UNKNOWN = 0;
+  IMAGE = 1;
+  AUDIO = 2;
+}
+
+message ScrapedItem {
+  string page_url = 1;
+  string media_url = 2;
+  MediaType media_type = 3;
+}
+
+message ProcessScrapedItemsRequest {
+  repeated ScrapedItem items = 1;
+  string job_id = 2;
+}
+
+message ProcessScrapedItemsResponse {
+  int32 items_received = 1;
+  int32 items_processed = 2;
+  int32 items_failed = 3;
+  string message = 4;
+}

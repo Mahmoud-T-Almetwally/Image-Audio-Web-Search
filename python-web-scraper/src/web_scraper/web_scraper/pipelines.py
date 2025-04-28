@@ -2,22 +2,17 @@ import grpc
 import logging
 from itemadapter import ItemAdapter
 
-
 try:
-    from . import feature_pb2 
-    from . import feature_pb2_grpc 
+
+    from . import indexing_pb2
+    from . import indexing_pb2_grpc
 
     GRPC_AVAILABLE = True
 except ImportError as e:
     GRPC_AVAILABLE = False
-    import sys
-    import os
-    current_dir = os.path.dirname(__file__)
-    src_dir_guess = os.path.abspath(os.path.join(current_dir, '..', '..'))
     logging.error(
-        f"ImportError loading gRPC modules: {e}. Check paths relative to {current_dir}. "
-        f"Expected 'generated' dir in '{src_dir_guess}'. sys.path: {sys.path}. "
-        f"Pipeline cannot communicate."
+        f"ImportError loading gRPC modules (indexing_pb2*.py) from generated. "
+        f"Ensure they were generated correctly. Error: {e}. Pipeline cannot communicate."
     )
 
 from .items import MediaItem
@@ -25,62 +20,73 @@ from .items import MediaItem
 logger = logging.getLogger(__name__)
 
 
-class FeatureExtractorPipeline:
+MEDIA_TYPE_MAP_TO_PROTO = {
+    "image": indexing_pb2.MediaType.IMAGE,
+    "audio": indexing_pb2.MediaType.AUDIO,
+}
 
-    def __init__(self, feature_extractor_address, batch_size):
+
+class GoApiPipeline:
+
+    def __init__(self, go_api_grpc_address, batch_size, job_id):
         if not GRPC_AVAILABLE:
-            raise NotConfigured("gRPC modules not available.")
-        self.feature_extractor_address = feature_extractor_address
+            raise NotConfigured("gRPC modules not available or import failed.")
+        self.go_api_grpc_address = go_api_grpc_address
         self.batch_size = batch_size
+
+        self.job_id = job_id or "unknown-job"
         self.item_buffer = []
         self.channel = None
         self.stub = None
 
     @classmethod
     def from_crawler(cls, crawler):
-        address = crawler.settings.get("FEATURE_EXTRACTOR_ADDRESS")
+
+        address = crawler.settings.get("GO_API_GRPC_ADDRESS")
         batch_size = crawler.settings.getint("PIPELINE_BATCH_SIZE", 100)
+
+        job_id = crawler.settings.get("JOB_ID", None)
         if not address:
-            raise NotConfigured("FEATURE_EXTRACTOR_ADDRESS setting is missing.")
-        return cls(feature_extractor_address=address, batch_size=batch_size)
+            raise NotConfigured("GO_API_GRPC_ADDRESS setting is missing.")
+        return cls(go_api_grpc_address=address, batch_size=batch_size, job_id=job_id)
 
     def open_spider(self, spider):
+        if not GRPC_AVAILABLE:
+            return
         try:
 
-            self.channel = grpc.insecure_channel(self.feature_extractor_address)
+            self.channel = grpc.insecure_channel(self.go_api_grpc_address)
 
-            self.stub = feature_pb2_grpc.FeatureServiceStub(self.channel)
+            self.stub = indexing_pb2_grpc.IndexingServiceStub(self.channel)
             logger.info(
-                f"Connected to Feature Extractor at {self.feature_extractor_address}"
+                f"[Job {self.job_id}] Connected to Go API gRPC at {self.go_api_grpc_address}"
             )
         except Exception as e:
             logger.error(
-                f"Failed to connect to Feature Extractor at {self.feature_extractor_address}: {e}",
+                f"[Job {self.job_id}] Failed to connect to Go API gRPC at {self.go_api_grpc_address}: {e}",
                 exc_info=True,
             )
-
             self.channel = None
             self.stub = None
 
     def close_spider(self, spider):
         if self.stub and self.item_buffer:
             logger.info(
-                f"Spider closing, sending final batch of {len(self.item_buffer)} items."
+                f"[Job {self.job_id}] Spider closing, sending final batch of {len(self.item_buffer)} items to Go API."
             )
             self._send_batch()
         if self.channel:
             self.channel.close()
-            logger.info("Closed connection to Feature Extractor.")
+            logger.info(f"[Job {self.job_id}] Closed connection to Go API gRPC.")
 
     def process_item(self, item, spider):
-
-        if not isinstance(item, MediaItem):
+        if not GRPC_AVAILABLE or not self.stub:
+            logger.warning(
+                f"[Job {self.job_id}] Dropping item due to unavailable gRPC connection/modules: {item.get('media_url')}"
+            )
             return item
 
-        if not self.stub:
-            logger.warning(
-                f"Dropping item due to unavailable connection to Feature Extractor: {item.get('media_url')}"
-            )
+        if not isinstance(item, MediaItem):
             return item
 
         adapter = ItemAdapter(item)
@@ -89,29 +95,33 @@ class FeatureExtractorPipeline:
         media_type_str = adapter.get("media_type")
 
         if not all([page_url, media_url, media_type_str]):
-            logger.warning(f"Skipping item with missing data: {item}")
-            return item
-
-        proto_media_type = feature_pb2.MediaType.UNKNOWN
-        if media_type_str == "image":
-            proto_media_type = feature_pb2.MediaType.IMAGE
-        elif media_type_str == "audio":
-            proto_media_type = feature_pb2.MediaType.AUDIO
-
-        if proto_media_type == feature_pb2.MediaType.UNKNOWN:
             logger.warning(
-                f"Skipping item with unknown media type '{media_type_str}': {media_url}"
+                f"[Job {self.job_id}] Skipping item with missing data: {item}"
             )
             return item
 
-        url_item_proto = feature_pb2.UrlItem(
-            media_url=media_url, type=proto_media_type, page_url=page_url
+        proto_media_type = MEDIA_TYPE_MAP_TO_PROTO.get(
+            media_type_str, indexing_pb2.MediaType.UNKNOWN
         )
-        self.item_buffer.append(url_item_proto)
-        logger.debug(f"Buffered item: page={page_url}, media={media_url}")
+
+        if proto_media_type == indexing_pb2.MediaType.UNKNOWN:
+            logger.warning(
+                f"[Job {self.job_id}] Skipping item with unknown media type '{media_type_str}': {media_url}"
+            )
+            return item
+
+        scraped_item_proto = indexing_pb2.ScrapedItem(
+            page_url=page_url, media_url=media_url, media_type=proto_media_type
+        )
+        self.item_buffer.append(scraped_item_proto)
+        logger.debug(
+            f"[Job {self.job_id}] Buffered item: page={page_url}, media={media_url}"
+        )
 
         if len(self.item_buffer) >= self.batch_size:
-            logger.info(f"Buffer full ({len(self.item_buffer)} items), sending batch.")
+            logger.info(
+                f"[Job {self.job_id}] Buffer full ({len(self.item_buffer)} items), sending batch to Go API."
+            )
             self._send_batch()
 
         return item
@@ -120,38 +130,34 @@ class FeatureExtractorPipeline:
         if not self.item_buffer or not self.stub:
             return
 
-        request = feature_pb2.ProcessUrlsRequest(
-            items=self.item_buffer, apply_denoising=False
+        request = indexing_pb2.ProcessScrapedItemsRequest(
+            items=self.item_buffer, job_id=self.job_id
         )
 
         try:
 
-            response = self.stub.ProcessUrls(request, timeout=60)
+            response = self.stub.ProcessScrapedItems(request, timeout=90)
             logger.info(
-                f"Sent batch of {len(self.item_buffer)} items. Received response (results count: {len(response.results)})."
+                f"[Job {self.job_id}] Sent batch of {len(self.item_buffer)} items to Go API. Response: {response.message}"
             )
 
-            for result in response.results:
-                if result.status != feature_pb2.Status.SUCCESS:
-                    logger.warning(
-                        f"Feature extraction failed for {result.url} (originally media_url: {self._find_media_url(result.url)}): Status={result.status}, Msg={result.error_message}"
-                    )
+            if response.items_failed > 0:
+                logger.warning(
+                    f"[Job {self.job_id}] Go API reported {response.items_failed} failures during batch processing."
+                )
 
         except grpc.RpcError as e:
             logger.error(
-                f"gRPC error sending batch to Feature Extractor: {e.status()} - {e.details()}",
+                f"[Job {self.job_id}] gRPC error sending batch to Go API: {e.status()} - {e.details()}",
                 exc_info=True,
             )
-
         except Exception as e:
-            logger.error(f"Unexpected error sending batch: {e}", exc_info=True)
+            logger.error(
+                f"[Job {self.job_id}] Unexpected error sending batch to Go API: {e}",
+                exc_info=True,
+            )
         finally:
-
             self.item_buffer.clear()
-
-    def _find_media_url(self, page_url_in_result):
-
-        return page_url_in_result
 
 
 class NotConfigured(Exception):

@@ -74,13 +74,12 @@ func (r *postgresRepository) InsertAudio(ctx context.Context, pageURL string, ve
 func (r *postgresRepository) FindSimilarImages(ctx context.Context, queryVector []float32, limit int) ([]models.SearchResult, error) {
 	var results []models.SearchResult
 	queryPgVec := pgvector.NewVector(queryVector)
-
 	err := r.db.WithContext(ctx).
-		Table("images").
-		Select("page_url, 1 - (feature_vector <=> ?) AS similarity", queryPgVec).
-		Order("similarity DESC").
-		Limit(limit).
-		Find(&results).Error
+		Table("images").                                  
+		Select("page_url, 1 - (feature_vector <=> ?) AS similarity", queryPgVec). 
+		Order("similarity DESC").                         
+		Limit(limit). // Use the limit passed from the service                         
+		Find(&results).Error 
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to find similar images: %w", err)
@@ -100,7 +99,7 @@ func (r *postgresRepository) FindSimilarAudio(ctx context.Context, queryVector [
 		Table("audio").
 		Select("page_url, 1 - (feature_vector <=> ?) AS similarity", queryPgVec).
 		Order("similarity DESC").
-		Limit(limit).
+		Limit(limit). // Use the limit passed from the service                      
 		Find(&results).Error
 
 	if err != nil {

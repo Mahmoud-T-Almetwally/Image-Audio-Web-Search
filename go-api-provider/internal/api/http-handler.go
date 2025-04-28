@@ -3,9 +3,12 @@ package api
 import (
 	"log"
 	"net/http"
-	"strconv"
+	"strings"
+	"path/filepath"
+	"os"
 
 	"github.com/Mahmoud-T-Almetwally/Image-Audio-Web-Search/internal/models"
+	"github.com/Mahmoud-T-Almetwally/Image-Audio-Web-Search/internal/config"
 	"github.com/Mahmoud-T-Almetwally/Image-Audio-Web-Search/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -13,14 +16,55 @@ import (
 type HTTPHandler struct {
 	indexSvc  *service.IndexService
 	searchSvc *service.SearchService
+	cfg *config.Config
 }
 
-func NewHTTPHandler(indexSvc *service.IndexService, searchSvc *service.SearchService) *HTTPHandler {
+func NewHTTPHandler(indexSvc *service.IndexService, searchSvc *service.SearchService, cfg *config.Config) *HTTPHandler {
 	return &HTTPHandler{
 		indexSvc:  indexSvc,
 		searchSvc: searchSvc,
+		cfg: cfg,
 	}
 }
+
+
+func (h *HTTPHandler) HandleServeTempMedia(c *gin.Context) {
+	filename := c.Param("filename") // Get filename from URL path
+
+	// **Security:** Basic validation to prevent directory traversal.
+	// Ensure filename doesn't contain path separators.
+	if filename == "" || strings.Contains(filename, "/") || strings.Contains(filename, "\\") || strings.Contains(filename, "..") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid filename"})
+		return
+	}
+
+	// Construct the full path safely
+	filePath := filepath.Join(h.cfg.TempMediaDir, filename)
+
+	// Check if file exists and is not a directory before serving
+	fileInfo, err := os.Stat(filePath)
+	if os.IsNotExist(err) {
+		log.Printf("Attempt to serve non-existent temp file: %s", filePath)
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+	if err != nil {
+		log.Printf("Error stating temp file %s: %v", filePath, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+	if fileInfo.IsDir() {
+		log.Printf("Attempt to serve directory as temp file: %s", filePath)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// Serve the file
+	// Let Gin/http handle Content-Type detection based on extension
+	log.Printf("Serving temp file: %s", filePath)
+	c.File(filePath)
+}
+
 
 func (h *HTTPHandler) HandleScrapeURL(c *gin.Context) {
 	var req models.ScrapeRequest
@@ -50,29 +94,25 @@ func (h *HTTPHandler) HandleScrapeURL(c *gin.Context) {
 }
 
 func (h *HTTPHandler) HandleSearch(c *gin.Context) {
+	fileHeader, err := c.FormFile("media_file") 
+	if err != nil { /* ... error handling ... */ return }
 
-	fileHeader, err := c.FormFile("media_file")
-	if err != nil {
-		log.Printf("Error getting file from form: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing or invalid 'media_file' field: " + err.Error()})
-		return
-	}
+	// --- Remove limit/offset parsing ---
+	// limitStr := c.DefaultQuery("limit", "10") 
+	// limit, err := strconv.Atoi(limitStr)
+	// if err != nil || limit <= 0 {
+	// 	limit = 10 
+	// }
+    // Hardcode limit (or get from config if preferred for default)
+	const searchLimit = 10 
 
-	limitStr := c.DefaultQuery("limit", "10")
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit <= 0 {
-		limit = 10
-	}
+	log.Printf("Received search request with file: %s, limit: %d", fileHeader.Filename, searchLimit)
 
-	log.Printf("Received search request with file: %s, limit: %d", fileHeader.Filename, limit)
+	// Call service with hardcoded limit
+	results, err := h.searchSvc.SearchByMedia(c.Request.Context(), fileHeader, searchLimit) 
+	if err != nil { /* ... error handling ... */ return }
 
-	results, err := h.searchSvc.SearchByMedia(c.Request.Context(), fileHeader, limit)
-	if err != nil {
-		log.Printf("Error performing search for file %s: %v", fileHeader.Filename, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Search failed: " + err.Error()})
-		return
-	}
-
+	// Return results (max 10)
 	c.JSON(http.StatusOK, models.SearchResponse{
 		Results: results,
 		Count:   len(results),

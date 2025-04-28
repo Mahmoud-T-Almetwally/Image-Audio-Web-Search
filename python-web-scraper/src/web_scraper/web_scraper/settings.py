@@ -79,16 +79,18 @@ PLAYWRIGHT_LAUNCH_OPTIONS = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-   "web_scraper.web_scraper.pipelines.FeatureExtractorPipeline": 300,
+   'web_scraper.pipelines.GoApiPipeline': 300, 
 }
 
 DEPTH_LIMIT = 2
 
 FEATURE_EXTRACTOR_ADDRESS = 'python-feature-extraction:50051' 
 
-PIPELINE_BATCH_SIZE = 100 
+PIPELINE_BATCH_SIZE = 100
 
 LOG_LEVEL = 'INFO'
+
+GO_API_GRPC_ADDRESS = 'go-api-provider:50050'
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html

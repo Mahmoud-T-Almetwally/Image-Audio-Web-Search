@@ -1,10 +1,12 @@
 package client
 
 import (
+	"bytes"
+	"encoding/binary"
+	"math"
 	"context"
 	"fmt"
 	"log"
-	"unsafe"
 
 	pb "github.com/Mahmoud-T-Almetwally/Image-Audio-Web-Search/internal/client/featurepb"
 	"google.golang.org/grpc"
@@ -54,20 +56,35 @@ func (fc *FeatureExtractorClient) ProcessUrls(ctx context.Context, items []*pb.U
 
 func VectorFromBytes(data []byte) ([]float32, error) {
 	if len(data)%4 != 0 {
-		return nil, fmt.Errorf("invalid byte slice length: must be multiple of 4 for float32")
+		return nil, fmt.Errorf("invalid byte slice length (%d): must be multiple of 4 for float32", len(data))
 	}
 	if len(data) == 0 {
-		return []float32{}, nil
+		return []float32{}, nil // Handle empty case explicitly
 	}
 
 	count := len(data) / 4
-
-	bytePtr := unsafe.Pointer(&data[0])
-
-	float32Slice := (*[1 << 30]float32)(bytePtr)[:count:count]
-
 	result := make([]float32, count)
-	copy(result, float32Slice)
+	byteReader := bytes.NewReader(data) // Create a reader for the byte slice
+
+	// Use binary.Read to read into the float32 slice
+	// Specify LittleEndian byte order (adjust if Python side uses different order)
+	err := binary.Read(byteReader, binary.LittleEndian, &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read bytes into float32 slice: %w", err)
+	}
+    
+    // The binary.Read should have consumed all bytes if lengths match
+    if byteReader.Len() != 0 {
+        return nil, fmt.Errorf("byte reader has %d remaining bytes after reading floats", byteReader.Len())
+    }
+
+	// Optional: Check for NaN/Inf (safer here as values are properly converted)
+	for i, v := range result {
+		if math.IsNaN(float64(v)) || math.IsInf(float64(v), 0) {
+			// Provide more context in error if needed
+			return nil, fmt.Errorf("deserialized vector contains NaN or Inf at index %d", i)
+		}
+	}
 
 	return result, nil
 }
