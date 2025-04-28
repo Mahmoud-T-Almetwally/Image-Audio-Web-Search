@@ -3,12 +3,8 @@ package api
 import (
 	"log"
 	"net/http"
-	"strings"
-	"path/filepath"
-	"os"
 
 	"github.com/Mahmoud-T-Almetwally/Image-Audio-Web-Search/internal/models"
-	"github.com/Mahmoud-T-Almetwally/Image-Audio-Web-Search/internal/config"
 	"github.com/Mahmoud-T-Almetwally/Image-Audio-Web-Search/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -16,55 +12,14 @@ import (
 type HTTPHandler struct {
 	indexSvc  *service.IndexService
 	searchSvc *service.SearchService
-	cfg *config.Config
 }
 
-func NewHTTPHandler(indexSvc *service.IndexService, searchSvc *service.SearchService, cfg *config.Config) *HTTPHandler {
+func NewHTTPHandler(indexSvc *service.IndexService, searchSvc *service.SearchService) *HTTPHandler {
 	return &HTTPHandler{
 		indexSvc:  indexSvc,
 		searchSvc: searchSvc,
-		cfg: cfg,
 	}
 }
-
-
-func (h *HTTPHandler) HandleServeTempMedia(c *gin.Context) {
-	filename := c.Param("filename") // Get filename from URL path
-
-	// **Security:** Basic validation to prevent directory traversal.
-	// Ensure filename doesn't contain path separators.
-	if filename == "" || strings.Contains(filename, "/") || strings.Contains(filename, "\\") || strings.Contains(filename, "..") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid filename"})
-		return
-	}
-
-	// Construct the full path safely
-	filePath := filepath.Join(h.cfg.TempMediaDir, filename)
-
-	// Check if file exists and is not a directory before serving
-	fileInfo, err := os.Stat(filePath)
-	if os.IsNotExist(err) {
-		log.Printf("Attempt to serve non-existent temp file: %s", filePath)
-		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
-		return
-	}
-	if err != nil {
-		log.Printf("Error stating temp file %s: %v", filePath, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-		return
-	}
-	if fileInfo.IsDir() {
-		log.Printf("Attempt to serve directory as temp file: %s", filePath)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-		return
-	}
-
-	// Serve the file
-	// Let Gin/http handle Content-Type detection based on extension
-	log.Printf("Serving temp file: %s", filePath)
-	c.File(filePath)
-}
-
 
 func (h *HTTPHandler) HandleScrapeURL(c *gin.Context) {
 	var req models.ScrapeRequest

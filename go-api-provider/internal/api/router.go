@@ -15,8 +15,6 @@ func SetupRouter(handler *HTTPHandler) *gin.Engine {
 		apiGroup.POST("/index", handler.HandleIndexDirect) 
 	}
 
-	router.GET("/temp_media/:filename", handler.HandleServeTempMedia) 
-
 	router.GET("/health", func(c *gin.Context) { /* ... */ })
 
 	return router
