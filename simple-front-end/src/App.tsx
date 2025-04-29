@@ -8,34 +8,31 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+// import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+import  axios  from "axios";
 
 // --- Icons (lucide-react) ---
 import { Upload, FileAudio, Link as LinkIcon, Image as ImageIcon, Search, Loader2, CheckCircle, AlertCircle, Mic } from 'lucide-react';
 
 // --- Types ---
-interface SearchResult {
-  id: string;
-  url: string;
-  previewUrl: string; // URL to an image/audio preview
-  previewType: 'image' | 'audio';
-  matchPercentage: number;
+interface ApiSearchResult {
+  page_url: string;
+  similarity: number; 
+  media_type: 'image' | 'audio';
 }
 
-// --- Helper Function for Dummy Data ---
-const generateDummyResults = (count: number): SearchResult[] => {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `result-${Date.now()}-${i}`,
-    url: `https://example.com/result/${i + 1}`,
-    // Alternate image/audio previews for variety
-    previewUrl: i % 2 === 0
-        ? `https://picsum.photos/seed/${i+1}/100/60` // Dummy image preview
-        : `https://via.placeholder.com/100x60.png?text=Audio+Preview+${i+1}`, // Placeholder audio preview
-    previewType: (i % 2 === 0 ? 'image' : 'audio') as 'image' | 'audio',
-    matchPercentage: Math.floor(Math.random() * 51) + 50, // 50% - 100%
-  })).sort((a, b) => b.matchPercentage - a.matchPercentage); // Sort descending by match %
-};
+interface SearchResultDisplay {
+  id: string; // Generate client-side
+  pageUrl: string;
+  previewType: 'image' | 'audio';
+  similarity: number; // Store as 0-1 or percentage? API returns 0-1 like value (1-distance)
+  // Add preview URL generation logic if needed
+  previewUrl: string;
+}
+
+const API_BASE_URL = '/api/v1';
 
 function App() {
   // --- State ---
@@ -43,7 +40,7 @@ function App() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [urlInput, setUrlInput] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResultDisplay[]>([]);
   const [isLoading, setIsLoading] = useState(false); // General loading for search
   const [isScraping, setIsScraping] = useState(false); // Specific loading for URL scrape
   const [scrapeSuccess, setScrapeSuccess] = useState<string | null>(null);
@@ -109,53 +106,122 @@ function App() {
   };
 
   const handleSearch = async (type: 'image' | 'audio') => {
+    const fileToSearch = type === 'image' ? imageFile : audioFile;
+    if (!fileToSearch) {
+      setError(`No ${type} file selected.`);
+      return;
+    }
+
     setError(null);
     setScrapeSuccess(null);
-    setSearchResults([]); // Clear previous results
+    setSearchResults([]); 
     setIsLoading(true);
 
-    console.log(`Searching with ${type}:`, type === 'image' ? imageFile?.name : audioFile?.name);
+    console.log(`Searching with ${type}:`, fileToSearch.name);
 
-    // --- Placeholder for actual API call ---
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
+    // Create FormData
+    const formData = new FormData();
+    formData.append('media_file', fileToSearch); // Field name must match Go handler
 
-    // Simulate success
-    setSearchResults(generateDummyResults(15)); // Generate 15 dummy results
-    setIsLoading(false);
+    try {
+      // Make API call (adjust API_BASE_URL if not using proxy)
+      const response = await axios.post<{ results: ApiSearchResult[] }>(
+          `${API_BASE_URL}/search`, 
+          formData, 
+          { 
+              headers: { 'Content-Type': 'multipart/form-data' } 
+          }
+      );
 
-    // Simulate error (uncomment to test)
-    // setError(`Failed to perform ${type} search. Please try again.`);
-    // setIsLoading(false);
+      // Map API results to display results
+      const displayResults = response.data.results.map((res, index): SearchResultDisplay => {
+        // Basic client-side ID generation
+        const id = `result-${Date.now()}-${index}`; 
+        // Generate a simple preview placeholder or link
+        const previewUrl = res.media_type === 'image'
+            ? `https://via.placeholder.com/100x60.png?text=Preview` // Replace with better placeholder or logic
+            : `https://via.placeholder.com/100x60.png?text=Audio`;
+
+        return {
+            id: id,
+            pageUrl: res.page_url,
+            similarity: Math.round(res.similarity * 100), // Convert 0-1 to percentage
+            previewType: res.media_type,
+            previewUrl: previewUrl, // Use generated/placeholder preview
+        };
+      });
+      
+      // Sort by similarity descending (API might already do this)
+      displayResults.sort((a, b) => b.similarity - a.similarity);
+
+      setSearchResults(displayResults);
+
+    } catch (err: any) {
+      console.error("Search API error:", err);
+      let errorMsg = `Failed to perform ${type} search.`;
+      if (axios.isAxiosError(err) && err.response?.data?.error) {
+        errorMsg = `Search failed: ${err.response.data.error}`;
+      } else if (err instanceof Error) {
+        errorMsg = `Search failed: ${err.message}`;
+      }
+      setError(errorMsg);
+      setSearchResults([]); // Clear results on error
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUrlScrape = async () => {
     setError(null);
     setScrapeSuccess(null);
-    setSearchResults([]); // Clear previous results (optional, maybe URL scrape has different results)
+    setSearchResults([]); 
 
-    // Basic URL format validation (can be improved)
     try {
-      new URL(urlInput); // Check if it parses as a URL
+      new URL(urlInput); 
     } catch (_) {
-      setError("Invalid URL format. Please enter a valid URL (e.g., https://example.com).");
+      setError("Invalid URL format.");
       return;
     }
 
     setIsScraping(true);
-    console.log("Scraping URL:", urlInput);
+    console.log("Requesting scrape for URL:", urlInput);
 
-    // --- Placeholder for actual scraping logic ---
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate network delay
+    try {
+        // Prepare payload (only URL for now, add others if needed)
+        const payload = {
+            url: urlInput,
+            depth_limit: 1, // Example: Send parameters if API supports them
+            use_playwright: false 
+        };
 
-    // Simulate success
-    setIsScraping(false);
-    setScrapeSuccess(`Successfully processed URL: ${urlInput}`);
-    // Optionally, set different results for scraping later
-    // setSearchResults(generateDummyResults(5));
+        // Make API call (adjust API_BASE_URL if not using proxy)
+        const response = await axios.post<{ job_id: string, status: string, message: string }>(
+            `${API_BASE_URL}/scrape`, 
+            payload
+        );
 
-    // Simulate error (uncomment to test)
-    // setError("Failed to scrape the URL. The server might be down or the URL is inaccessible.");
-    // setIsScraping(false);
+        console.log(response)
+
+        if (response.data.status === 'ACCEPTED') {
+            setScrapeSuccess(`Scrape job accepted (ID: ${response.data.job_id}). Processing initiated.`);
+        } else {
+             setError(`Scrape job rejected: ${response.data.message || 'Unknown reason'}`);
+        }
+
+    } catch (err: any) {
+         console.error("Scrape API error:", err);
+        let errorMsg = "Failed to initiate scrape.";
+        if (axios.isAxiosError(err) && err.response?.data?.error) {
+            errorMsg = `Scrape initiation failed: ${err.response.data.error}`;
+        } else if (axios.isAxiosError(err) && err.response?.data?.message) {
+             errorMsg = `Scrape initiation failed: ${err.response.data.message}`;
+        } else if (err instanceof Error) {
+            errorMsg = `Scrape initiation failed: ${err.message}`;
+        }
+        setError(errorMsg);
+    } finally {
+      setIsScraping(false);
+    }
   };
 
   // --- Render Helper for File Input ---
@@ -297,16 +363,16 @@ function App() {
                           )}
                         </div>
                         <a
-                          href={result.url}
+                          href={result.previewUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm font-medium text-blue-600 hover:underline break-all line-clamp-2"
                         >
-                          {result.url}
+                          {result.pageUrl}
                         </a>
                       </CardContent>
                       <div className="bg-muted/50 px-4 py-2 border-t text-sm font-medium text-right">
-                         Match: <span className="text-primary">{result.matchPercentage}%</span>
+                         Match: <span className="text-primary">{result.similarity}%</span>
                       </div>
                     </Card>
                    </motion.div>
@@ -346,16 +412,16 @@ function App() {
                              )}
                            </div>
                            <a
-                             href={result.url}
+                             href={result.previewUrl}
                              target="_blank"
                              rel="noopener noreferrer"
                              className="text-sm font-medium text-blue-600 hover:underline break-all line-clamp-2"
                            >
-                             {result.url}
+                             {result.pageUrl}
                            </a>
                          </CardContent>
                          <div className="bg-muted/50 px-4 py-2 border-t text-sm font-medium text-right">
-                            Match: <span className="text-primary">{result.matchPercentage}%</span>
+                            Match: <span className="text-primary">{result.similarity}%</span>
                          </div>
                         </Card>
                        </motion.div>
@@ -366,7 +432,7 @@ function App() {
             )}
 
             {/* Placeholder Pagination */}
-            {searchResults.length > 10 && ( // Only show if there are enough results to paginate
+            {/* {searchResults.length > 10 && ( // Only show if there are enough results to paginate
                 <div className="pt-6">
                     <Pagination>
                         <PaginationContent>
@@ -388,7 +454,7 @@ function App() {
                         </PaginationContent>
                     </Pagination>
                  </div>
-            )}
+            )} */}
           </CardContent>
         </Card>
       </motion.div>
@@ -473,7 +539,7 @@ function App() {
                 ) : (
                     <Search className="mr-2 h-4 w-4" /> // Or a different icon like Play or Send
                 )}
-                 {isScraping ? 'Processing...' : 'Scrape (Placeholder)'}
+                 {isScraping ? 'Processing...' : 'Scrape'}
               </Button>
 
                {/* Scraping Feedback */}

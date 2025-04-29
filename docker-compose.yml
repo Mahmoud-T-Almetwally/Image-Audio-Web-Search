@@ -1,17 +1,17 @@
 
 services:
   db:
-    image: pgvector/pgvector:pg16 # Use image with pgvector bundled
+    image: pgvector/pgvector:pg16 
     container_name: postgres_db
     environment:
-      # Use .env file or defaults
+      
       POSTGRES_DB: ${POSTGRES_DB:-mediasearch} 
       POSTGRES_USER: ${POSTGRES_USER:-user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
     volumes:
-      - postgres_data:/var/lib/postgresql/data # Persist data
+      - postgres_data:/var/lib/postgresql/data 
     ports:
-      - "5433:5432" # Map port to host for direct access (optional)
+      - "5433:5432" 
     networks:
       - app_network
     healthcheck:
@@ -19,7 +19,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    # Add explicit restart policy
+    
     restart: unless-stopped 
 
   feature-extractor:
@@ -51,44 +51,55 @@ services:
     container_name: scraper_service
     environment:
       SCRAPE_SERVER_ADDRESS: "0.0.0.0:50052"
-      GO_API_GRPC_ADDRESS: "go-api:50050" # Use service name 'go-api' and Go gRPC port
+      GO_API_GRPC_ADDRESS: "go-api:50050" 
       PYTHONUNBUFFERED: 1
     ports:
       - "50052:50052" 
     networks:
       - app_network
     depends_on:
-      - go-api # Explicit dependency for the pipeline target
-    restart: unless-stopped
+      - go-api 
+    # restart: unless-stopped
 
   go-api:
     build: ./go-api-provider
     container_name: go_api_service
     environment:
-      # Database connection
+      
       DB_HOST: db 
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-user}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-password}
       DB_NAME: ${POSTGRES_DB:-mediasearch}
       DB_SSL_MODE: "disable" 
-      # gRPC Service Addresses
+      
       FEATURE_EXTRACTOR_ADDR: "feature-extractor:50051"
       SCRAPER_ADDR: "scraper:50052"
-      # Server Ports
+      
       HTTP_SERVER_PORT: "8080" 
       GRPC_SERVER_PORT: "50050"
       
     ports:
-      - "8080:8080"   # Map HTTP port to host
-      - "50050:50050"   # Map Go gRPC port to host (optional)
+      - "8080:8080"   
+      - "50050:50050"   
     networks:
       - app_network
     depends_on:
       db:
         condition: service_healthy
       feature-extractor: 
-         condition: service_started # Can improve if FE adds a healthcheck
+         condition: service_started 
+    restart: unless-stopped
+  
+  frontend: 
+    build: ./simple-front-end 
+    container_name: frontend_ui
+    ports:
+      - "3000:80" 
+    networks:
+      - app_network
+    depends_on:
+      - go-api 
     restart: unless-stopped
 
 volumes:

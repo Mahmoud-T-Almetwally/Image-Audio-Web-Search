@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -23,7 +24,35 @@ import (
 
 func main() {
 
-	cfg, err := config.LoadConfig(".")
+	configDir := "."
+
+	exePath, err := os.Executable()
+	if err == nil {
+
+		exeDir := filepath.Dir(exePath)
+
+		if filepath.Base(filepath.Dir(exeDir)) == "cmd" {
+			projectRoot := filepath.Dir(filepath.Dir(exeDir))
+			configDir = projectRoot
+			log.Printf("Detected run from 'cmd/server', setting config search path to project root: %s", configDir)
+		} else {
+
+			configDir = "."
+			log.Printf("Assuming running from project root or container /app, setting config search path to CWD: %s", configDir)
+		}
+
+	} else {
+		log.Printf("Warning: Could not get executable path (%v), using CWD '.' for config search.", err)
+	}
+
+	expectedConfigFile := filepath.Join(configDir, "config.env")
+	if _, statErr := os.Stat(expectedConfigFile); os.IsNotExist(statErr) {
+		log.Printf("Config file '%s' does not exist. Will rely on ENV vars/defaults.", expectedConfigFile)
+	} else {
+		log.Printf("Config file found at '%s', attempting to load.", expectedConfigFile)
+	}
+
+	cfg, err := config.LoadConfig(configDir)
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}

@@ -26,20 +26,44 @@ type Config struct {
 }
 
 func LoadConfig(path string) (config Config, err error) {
-	viper.AddConfigPath(path)
-	viper.SetConfigName("config")
-	viper.SetConfigType("env")
+	if path != "" {
+		viper.AddConfigPath(path) 
+		viper.SetConfigName("config")   
+		viper.SetConfigType("env")      
+		
+		// Attempt to read the config file
+		readErr := viper.ReadInConfig() // Use different variable to avoid shadowing 'err'
+		if readErr != nil {
+			if _, ok := readErr.(viper.ConfigFileNotFoundError); ok {
+				log.Printf("Config file ('config.env') not found in path '%s'. Relying on Environment Variables and Defaults.", path)
+				// File not found is okay, proceed
+			} else {
+				// Different error reading the file (e.g., permissions)
+				log.Printf("Warning: Error reading config file '%s': %v. Relying on Environment Variables and Defaults.", viper.ConfigFileUsed(), readErr)
+			}
+		} else {
+            log.Println("Successfully read config file:", viper.ConfigFileUsed())
+        }
+	} else {
+        log.Println("No config file path provided. Relying on Environment Variables and Defaults.")
+    }
+
 
 	viper.AutomaticEnv()
 
 	viper.SetEnvKeyReplacer(strings.NewReplacer(`.`, `_`))
 
-	viper.SetDefault("HTTP_SERVER_PORT", "8080")
-	viper.SetDefault("GRPC_SERVER_PORT", "50050")
-	viper.SetDefault("DB_SSL_MODE", "disable")
-	viper.SetDefault("DEFAULT_SEARCH_LIMIT", 10)
-	viper.SetDefault("FEATURE_EXTRACTOR_ADDR", "localhost:50051")
-	viper.SetDefault("SCRAPER_ADDR", "localhost:50052")
+	viper.BindEnv("DBHost", "DB_HOST")
+	viper.BindEnv("DBPort", "DB_PORT")
+	viper.BindEnv("DBUser", "DB_USER")
+	viper.BindEnv("DBPassword", "DB_PASSWORD")
+	viper.BindEnv("DBName", "DB_NAME")
+	viper.BindEnv("DBSslMode", "DB_SSL_MODE")
+	viper.BindEnv("FeatureExtractorAddr", "FEATURE_EXTRACTOR_ADDR")
+	viper.BindEnv("ScraperAddr", "SCRAPER_ADDR")
+	viper.BindEnv("HTTPServerPort", "HTTP_SERVER_PORT")
+	viper.BindEnv("GRPCServerPort", "GRPC_SERVER_PORT")
+	viper.BindEnv("DefaultSearchLimit", "DEFAULT_SEARCH_LIMIT")
 
 	err = viper.ReadInConfig()
 	if err != nil {
@@ -61,10 +85,9 @@ func LoadConfig(path string) (config Config, err error) {
 	}
 
 	config.DBDSN = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-	config.DBHost, config.DBPort, config.DBUser, config.DBPassword, config.DBName, config.DBSslMode)
+		config.DBHost, config.DBPort, config.DBUser, config.DBPassword, config.DBName, config.DBSslMode)
 
-	
 	log.Println("Configuration loaded successfully")
-	
+
 	return
 }
