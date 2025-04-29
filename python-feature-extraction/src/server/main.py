@@ -68,21 +68,20 @@ def serve():
 
     bytes_feature_service = FeatureBytesExtractionService(
         extractor=extractor,
-        filter_images=True,
-        max_image_size_mb=25,
-        filter_audio=True,
-        max_audio_size_mb=150,
     )
 
-
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=max_workers))
-    feature_pb2_grpc.add_FeatureUrlServiceServicer_to_server(url_feature_service, server)
-    feature_pb2_grpc.add_FeatureBytesServiceServicer_to_server(bytes_feature_service, server)
+    feature_pb2_grpc.add_FeatureUrlServiceServicer_to_server(
+        url_feature_service, server
+    )
+    feature_pb2_grpc.add_FeatureBytesServiceServicer_to_server(
+        bytes_feature_service, server
+    )
 
     try:
         server.add_insecure_port(server_address)
         server.start()
-        logger.info(f"Feature Extraction Server started successfully!")
+        logger.info(f"🚀 Feature Extraction Server started successfully!")
         logger.info(f"Listening on: {server_address}")
         logger.info(f"Max workers: {max_workers}")
 
@@ -106,4 +105,8 @@ def serve():
 
 
 if __name__ == "__main__":
-    serve()
+    try:
+        serve()
+    except KeyboardInterrupt:
+        logger.info("Server shutdown requested via KeyboardInterrupt.")
+

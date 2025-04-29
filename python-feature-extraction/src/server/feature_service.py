@@ -32,7 +32,7 @@ STATUS_MAP_TO_PROTO = {
 }
 
 
-class FeatureURLExtractionService(feature_pb2_grpc.FeatureServiceServicer):
+class FeatureURLExtractionService(feature_pb2_grpc.FeatureUrlServiceServicer):
 
     def __init__(
         self,

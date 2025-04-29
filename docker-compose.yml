@@ -11,7 +11,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data # Persist data
     ports:
-      - "5432:5432" # Map port to host for direct access (optional)
+      - "5433:5432" # Map port to host for direct access (optional)
     networks:
       - app_network
     healthcheck:
@@ -26,19 +26,17 @@ services:
     build: ./python-feature-extraction
     container_name: feature_extractor_service
     environment:
-      FEATURE_SERVER_ADDRESS: "0.0.0.0:50051" # Listen on all interfaces inside container
-      # Optional: Specify device if not auto-detected well inside container
-      # DEVICE: "cuda" 
-      # Optional: Add PYTHONUNBUFFERED for better logging through docker compose
+      FEATURE_SERVER_ADDRESS: "0.0.0.0:50051" 
+      DEVICE: "cuda" 
       PYTHONUNBUFFERED: 1
-    # Optional: GPU configuration 
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1 
-    #           capabilities: [gpu]
+    runtime: nvidia 
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1 
+              capabilities: [gpu]
     ports:
       - "50051:50051" 
     networks:
@@ -84,7 +82,6 @@ services:
     ports:
       - "8080:8080"   # Map HTTP port to host
       - "50050:50050"   # Map Go gRPC port to host (optional)
-    # --- Removed temp_media volume mount ---
     networks:
       - app_network
     depends_on:
