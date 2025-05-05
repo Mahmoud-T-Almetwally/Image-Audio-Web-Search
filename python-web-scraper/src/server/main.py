@@ -44,6 +44,8 @@ async def serve():
     server_address = os.environ.get(_SERVER_ADDRESS_ENV, _DEFAULT_SERVER_ADDRESS)
     max_workers = int(os.environ.get(_MAX_WORKERS_ENV, _DEFAULT_MAX_WORKERS))
 
+    print(server_address, max_workers)
+
     logger.info("--- Initializing Scraper Service ---")
 
     server = grpc.aio.server(futures.ThreadPoolExecutor(max_workers=max_workers))

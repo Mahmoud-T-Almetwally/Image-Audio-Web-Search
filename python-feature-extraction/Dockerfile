@@ -47,4 +47,4 @@ EXPOSE 50051
 # Command to run the service
 # Use -u for unbuffered output, helps with Docker logs
 # gRPC message size limits should be configured within the server code (main.py)
-CMD ["python", "-u", "-m", "src.server.main"]
+CMD ["python3", "-u", "-m", "src.server.main"]

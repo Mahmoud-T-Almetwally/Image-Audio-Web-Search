@@ -123,6 +123,8 @@ function App() {
     const formData = new FormData();
     formData.append('media_file', fileToSearch); // Field name must match Go handler
 
+    console.log(formData)
+
     try {
       // Make API call (adjust API_BASE_URL if not using proxy)
       const response = await axios.post<{ results: ApiSearchResult[] }>(
@@ -132,6 +134,8 @@ function App() {
               headers: { 'Content-Type': 'multipart/form-data' } 
           }
       );
+
+      console.log(response)
 
       // Map API results to display results
       const displayResults = response.data.results.map((res, index): SearchResultDisplay => {

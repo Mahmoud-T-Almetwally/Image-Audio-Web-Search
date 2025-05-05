@@ -88,11 +88,7 @@ class ScraperService(scrape_pb2_grpc.ScraperServiceServicer):
             )
             crawl_strategy = DEFAULT_CRAWL_STRATEGY
 
-        use_playwright = (
-            request.use_playwright
-            if request.HasField("use_playwright")
-            else DEFAULT_USE_PLAYWRIGHT
-        )
+        use_playwright = False
 
         job_id = str(uuid.uuid4())
         logger.info(f"Generated Job ID: {job_id} for URL: {start_url}")

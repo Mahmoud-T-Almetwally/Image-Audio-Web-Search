@@ -2,22 +2,23 @@ import grpc
 import logging
 from itemadapter import ItemAdapter
 
+from .items import MediaItem
+
+logger = logging.getLogger(__name__)
+
 try:
 
-    from . import indexing_pb2
-    from . import indexing_pb2_grpc
+    import indexing_pb2
+    import indexing_pb2_grpc
 
     GRPC_AVAILABLE = True
 except ImportError as e:
     GRPC_AVAILABLE = False
-    logging.error(
+    logger.error(
         f"ImportError loading gRPC modules (indexing_pb2*.py) from generated. "
         f"Ensure they were generated correctly. Error: {e}. Pipeline cannot communicate."
     )
 
-from .items import MediaItem
-
-logger = logging.getLogger(__name__)
 
 
 MEDIA_TYPE_MAP_TO_PROTO = {

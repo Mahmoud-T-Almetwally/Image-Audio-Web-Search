@@ -79,7 +79,7 @@ PLAYWRIGHT_LAUNCH_OPTIONS = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-   'web_scraper.pipelines.GoApiPipeline': 300, 
+   'web_scraper.web_scraper.pipelines.GoApiPipeline': 300, 
 }
 
 DEPTH_LIMIT = 2

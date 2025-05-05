@@ -3,6 +3,8 @@ services:
   db:
     image: pgvector/pgvector:pg16 
     container_name: postgres_db
+    env_file:
+      - .env
     environment:
       
       POSTGRES_DB: ${POSTGRES_DB:-mediasearch} 
@@ -59,11 +61,13 @@ services:
       - app_network
     depends_on:
       - go-api 
-    # restart: unless-stopped
+    restart: unless-stopped
 
   go-api:
     build: ./go-api-provider
     container_name: go_api_service
+    env_file:
+      - ./go-api-provider/config.env
     environment:
       
       DB_HOST: db 

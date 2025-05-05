@@ -34,6 +34,7 @@ func ConnectDB(cfg *config.Config) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect database: %w", err)
 	}
+	db.Exec("CREATE EXTENSION IF NOT EXISTS vector")
 
 	log.Println("Running database migrations...")
 	err = db.AutoMigrate(&models.Image{}, &models.Audio{})

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -18,43 +17,16 @@ import (
 	"github.com/Mahmoud-T-Almetwally/Image-Audio-Web-Search/internal/config"
 	"github.com/Mahmoud-T-Almetwally/Image-Audio-Web-Search/internal/database"
 	"github.com/Mahmoud-T-Almetwally/Image-Audio-Web-Search/internal/service"
-
 	"google.golang.org/grpc"
 )
 
 func main() {
 
-	configDir := "."
+	configPath := "../../config.env"
 
-	exePath, err := os.Executable()
-	if err == nil {
-
-		exeDir := filepath.Dir(exePath)
-
-		if filepath.Base(filepath.Dir(exeDir)) == "cmd" {
-			projectRoot := filepath.Dir(filepath.Dir(exeDir))
-			configDir = projectRoot
-			log.Printf("Detected run from 'cmd/server', setting config search path to project root: %s", configDir)
-		} else {
-
-			configDir = "."
-			log.Printf("Assuming running from project root or container /app, setting config search path to CWD: %s", configDir)
-		}
-
-	} else {
-		log.Printf("Warning: Could not get executable path (%v), using CWD '.' for config search.", err)
-	}
-
-	expectedConfigFile := filepath.Join(configDir, "config.env")
-	if _, statErr := os.Stat(expectedConfigFile); os.IsNotExist(statErr) {
-		log.Printf("Config file '%s' does not exist. Will rely on ENV vars/defaults.", expectedConfigFile)
-	} else {
-		log.Printf("Config file found at '%s', attempting to load.", expectedConfigFile)
-	}
-
-	cfg, err := config.LoadConfig(configDir)
+	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		log.Printf("error occured while loading to load configuration: %v", err)
 	}
 
 	db, err := database.ConnectDB(&cfg)
@@ -64,11 +36,13 @@ func main() {
 	defer sqlDB.Close()
 
 	featureClient, err := client.NewFeatureExtractorClient(cfg.FeatureExtractorAddr)
-	if err != nil { /*...*/
+	if err != nil { 
+		log.Printf("Failed to connect to feature extraction service: %v", err)
 	}
 	defer featureClient.Close()
 	scraperClient, err := client.NewScraperClient(cfg.ScraperAddr)
-	if err != nil { /*...*/
+	if err != nil { 
+		log.Printf("Failed to connect to web scrape service: %v", err)
 	}
 	defer scraperClient.Close()
 
